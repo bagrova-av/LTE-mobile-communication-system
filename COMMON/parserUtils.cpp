@@ -327,3 +327,54 @@ int32_t parsePort(const std::string& portStr)
     }
     return port.value();
 }
+
+bool parseBaseStationsJSON(const std::string& configPath, std::vector<std::unique_ptr<BaseStation>>& baseStations)
+{
+    std::ifstream configFile(configPath);
+    if (!configFile.is_open())
+    {
+        Logger::error("Error: could not open baseStations config file: " + configPath);
+        return false;
+    }
+
+    json data;
+    try
+    {
+        configFile >> data;
+        if (!data.contains("baseStations") || !data["baseStations"].is_array())
+        {
+            return false;
+        }
+
+        const auto& items = data["baseStations"];
+        baseStations.reserve(items.size());
+        for (const auto& item : items)
+        {
+            size_t id = item["id"].get<size_t>();
+            size_t mmeId = item["mmeId"].get<size_t>();
+            std::vector<CoordinatesType> positionComponents = item["position"].get<std::vector<CoordinatesType>>();
+            CoordinatesType coverageRadius = item["coverageRadius"].get<CoordinatesType>();
+            size_t maxSupportedConnections = item["maxSupportedConnections"].get<size_t>();
+            size_t bufferBytesSizePerConnection = item["bufferBytesSizePerConnection"].get<size_t>();
+            LocationPoint3D position;
+            position.updateFromVector(positionComponents);
+            baseStations.emplace_back(std::make_unique<BaseStation>(id,
+                                                                    mmeId,
+                                                                    position,
+                                                                    coverageRadius,
+                                                                    maxSupportedConnections,
+                                                                    bufferBytesSizePerConnection
+                                                                )
+            );
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        Logger::error(std::format("Error: Failed to process JSON file with baseStations config.\nDetails: {}", 
+                                    ex.what()));
+        return false;
+    }
+
+    configFile.close();
+    return true;
+}

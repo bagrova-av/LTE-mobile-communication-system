@@ -23,6 +23,9 @@ private:
     bool hasEnoughSpaceInBuffer(ClientContext* clientContext, const BytesBuffer& data) const;
 
 public:
+    BaseStation(BaseStationId id, size_t mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
+                size_t numberSupportedConnections, size_t bufferBytesSizePerConnection);
+
     void registerClient(M_TMSI m_tmsi, int clientFileDescriptor);
     float calculateSignalStrength(const LocationPoint3D& clientLocation) const;
     bool pushMessageToBuffer(M_TMSI m_tmsi, const BytesBuffer& data);

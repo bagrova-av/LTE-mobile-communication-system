@@ -71,6 +71,7 @@ target_link_libraries(${PROJECT_NAME}Client PRIVATE ${PROJECT_NAME}ClientLib)
 add_executable(${PROJECT_NAME}Server
     SERVER/mainServer.cpp
     SERVER/ServerApp.cpp
+    SERVER/entities/BaseStation.cpp
 )
 target_link_libraries(${PROJECT_NAME}Server PRIVATE ${PROJECT_NAME}Core)
 

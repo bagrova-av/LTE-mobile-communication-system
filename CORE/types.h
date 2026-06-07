@@ -17,6 +17,7 @@ using Octet = uint8_t;
 using IMSI = std::string;
 using M_TMSI = uint32_t;
 using IMEI = std::string;
+using MSISDN = std::string;
 using Nodes = std::string;
 using Port = uint16_t;
 using BaseStationId = uint32_t;

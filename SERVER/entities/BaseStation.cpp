@@ -1,5 +1,15 @@
 #include "BaseStation.h"
 
+BaseStation::BaseStation(BaseStationId id, size_t mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
+                        size_t numberSupportedConnections, size_t bufferBytesSizePerConnection) :
+    id(id),
+    mmeId(mmeId),
+    position(position),
+    coverageRadius(coverageRadius),
+    numberSupportedConnections(numberSupportedConnections),
+    bufferBytesSizePerConnection(bufferBytesSizePerConnection)
+{} 
+
 void BaseStation::registerClient(M_TMSI m_tmsi, int clientFileDescriptor)
 {
     std::lock_guard<std::mutex> lock(bsMutex);

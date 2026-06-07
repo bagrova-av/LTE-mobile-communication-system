@@ -8,6 +8,7 @@
 #include "../APP/app/StartupParams.h"
 #include "../APP/app/AppParams.h"
 #include "./logging/Logger.h"
+#include "../SERVER/entities/BaseStation.h"
 
 std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& configPath);
 
@@ -36,5 +37,7 @@ std::optional<AppConfig> buildFinalConfig(const StartupParams& params);
 std::vector<std::string> splitCommand(const std::string& commandStr);
 
 int32_t parsePort(const std::string& portStr);
+
+bool parseBaseStationsJSON(const std::string& configPath, std::vector<std::unique_ptr<BaseStation>>& baseStations);
 
 #endif
