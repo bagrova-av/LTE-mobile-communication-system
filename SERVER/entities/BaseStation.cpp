@@ -35,6 +35,12 @@ ClientContext* BaseStation::findClientContext(M_TMSI m_tmsi)
     return (it->second).get();
 }
 
+void BaseStation::removeClient(M_TMSI m_tmsi)
+{
+    std::lock_guard<std::mutex> lock(bsMutex);
+    connectedClients.erase(m_tmsi);
+}
+
 float BaseStation::calculateSignalStrength(const LocationPoint3D& clientLocation) const
 {
     CoordinatesType distance = position.distanceTo(clientLocation);

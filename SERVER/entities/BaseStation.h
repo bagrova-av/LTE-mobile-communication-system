@@ -27,6 +27,7 @@ public:
                 size_t numberSupportedConnections, size_t bufferBytesSizePerConnection);
 
     void registerClient(M_TMSI m_tmsi, int clientFileDescriptor);
+    void removeClient(M_TMSI m_tmsi);
     float calculateSignalStrength(const LocationPoint3D& clientLocation) const;
     bool pushMessageToBuffer(M_TMSI m_tmsi, const BytesBuffer& data);
     std::optional<BytesBuffer> popMessageFromBuffer(M_TMSI m_tmsi);

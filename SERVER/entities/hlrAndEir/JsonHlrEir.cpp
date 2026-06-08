@@ -85,24 +85,23 @@ bool JsonHlrEir::updateSubscriberStatus(const IMSI& imsi, const SubscriberStatus
     return true;
 }
 
-bool JsonHlrEir::updateSubscriberMmeId(const IMSI& imsi, MmeId mmeId)
+bool JsonHlrEir::updateSubscriberSessionData(const IMSI& imsi,
+                                            std::optional<MmeId> mmeId,
+                                            std::optional<std::chrono::system_clock::time_point> time)
 {
     HlrEirRecord* subscriberRecord = getSubscriberPointerByImsi(imsi);
     if (!subscriberRecord)
     {
         return false;
     }
-    subscriberRecord->sessionData.currentMmeId = mmeId;
-    return true;
-}
 
-bool JsonHlrEir::updateSubscriberLastActivityTime(const IMSI& imsi, std::chrono::system_clock::time_point time)
-{
-    HlrEirRecord* subscriberRecord = getSubscriberPointerByImsi(imsi);
-    if (!subscriberRecord)
+    if (mmeId.has_value())
     {
-        return false;
+        subscriberRecord->sessionData.currentMmeId = mmeId.value();
     }
-    subscriberRecord->sessionData.lastActivityTime = time;
+    if (time.has_value())
+    {
+        subscriberRecord->sessionData.lastActivityTime = time.value();
+    }
     return true;
 }
