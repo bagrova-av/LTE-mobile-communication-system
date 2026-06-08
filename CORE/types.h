@@ -21,6 +21,7 @@ using MSISDN = std::string;
 using Nodes = std::string;
 using Port = uint16_t;
 using BaseStationId = uint32_t;
+using MmeId = size_t;
 
 struct IPv4
 {

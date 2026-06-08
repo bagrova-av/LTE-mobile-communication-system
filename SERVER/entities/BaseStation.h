@@ -13,7 +13,7 @@ private:
     BaseStationId id;
     LocationPoint3D position;
     CoordinatesType coverageRadius;
-    size_t mmeId;
+    MmeId mmeId;
     size_t numberSupportedConnections;
     size_t bufferBytesSizePerConnection;
     std::unordered_map<M_TMSI, std::unique_ptr<ClientContext>> connectedClients;
@@ -23,7 +23,7 @@ private:
     bool hasEnoughSpaceInBuffer(ClientContext* clientContext, const BytesBuffer& data) const;
 
 public:
-    BaseStation(BaseStationId id, size_t mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
+    BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
                 size_t numberSupportedConnections, size_t bufferBytesSizePerConnection);
 
     void registerClient(M_TMSI m_tmsi, int clientFileDescriptor);
@@ -32,17 +32,17 @@ public:
     std::optional<BytesBuffer> popMessageFromBuffer(M_TMSI m_tmsi);
     bool sendDeliveryStatusToСlient(M_TMSI m_tmsi);
 
-    void setMME(size_t otherMmeId);
+    void setMME(MmeId otherMmeId);
 
     BaseStationId getId() const;
     LocationPoint3D getPosition() const;
     CoordinatesType getCoverageRadius() const;
-    size_t getIdMME() const;
+    MmeId getIdMME() const;
     size_t getNumberSupportedConnections() const;
     size_t getBufferSizePerConnection() const;
 };
 
-inline void BaseStation::setMME(size_t otherMmeId)
+inline void BaseStation::setMME(MmeId otherMmeId)
 {
     mmeId = otherMmeId;
 }
@@ -62,7 +62,7 @@ inline CoordinatesType BaseStation::getCoverageRadius() const
     return coverageRadius;
 }
 
-inline size_t BaseStation::getIdMME() const
+inline MmeId BaseStation::getIdMME() const
 {
     return mmeId;
 }

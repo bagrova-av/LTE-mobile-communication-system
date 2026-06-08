@@ -1,6 +1,6 @@
 #include "BaseStation.h"
 
-BaseStation::BaseStation(BaseStationId id, size_t mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
+BaseStation::BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
                         size_t numberSupportedConnections, size_t bufferBytesSizePerConnection) :
     id(id),
     mmeId(mmeId),
@@ -40,7 +40,7 @@ float BaseStation::calculateSignalStrength(const LocationPoint3D& clientLocation
     CoordinatesType distance = position.distanceTo(clientLocation);
     if (distance > coverageRadius)
     {
-        return 0.0f;
+        return std::numeric_limits<float>::lowest();
     }
     return 1.0f - (distance / coverageRadius); 
 }
