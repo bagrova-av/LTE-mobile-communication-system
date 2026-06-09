@@ -3,7 +3,7 @@
 #include "../COMMON/parserUtils.h"
 #include "../CORE/network/JsonSerializer.h"
 #include "../CORE/network/BinarySerializer.h"
-#include "../CORE/AppProtocol.h"
+#include "../CORE/PacketTransporter.h"
 
 #include <algorithm>
 #include <iostream>
@@ -82,7 +82,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
 
 void ServerApp::processSingleClient(int clientFileDescriptor)
 {
-    std::optional<ReceivedDataPacket> dataPacket = AppProtocol::receiveLocationRequest(clientFileDescriptor);
+    std::optional<ReceivedDataPacket> dataPacket = PacketTransporter::receiveDataPacketRequest(clientFileDescriptor);
     if (!dataPacket.has_value())
     {
         ServerSocket::closeClientConnection(clientFileDescriptor);
@@ -115,7 +115,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
         Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation.value())
                     + " is " + std::to_string(distance));
 
-        AppProtocol::sendDistanceResponse(clientFileDescriptor, distance);
+        PacketTransporter::sendDistanceResponse(clientFileDescriptor, receivedProtocol, distance);
     }
     ServerSocket::closeClientConnection(clientFileDescriptor);
 }

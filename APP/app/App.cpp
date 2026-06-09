@@ -1,5 +1,5 @@
 #include "App.h"
-#include "AppProtocol.h"
+#include "../../CORE/PacketTransporter.h"
 #include "../../COMMON/logging/Logger.h"
 #include "../../CORE/network/JsonSerializer.h"
 #include "../../CORE/network/BinarySerializer.h"
@@ -80,14 +80,15 @@ void App::networkThreadWorker()
         }
         Logger::info("The client has successfully connected to the server");
 
-        if (!AppProtocol::sendLocationRequest(clientSocket, protocolHeader, serializedData.value()))
+        if (!PacketTransporter::sendDataPacketRequest(clientSocket, protocolHeader, PacketType::LOCATION,
+                                                      serializedData.value()))
         {
             Logger::error("CommandMove: failed to send data to the server");
             continue;
         }
         Logger::info("The data with the current position of the client has been sent to the server successfully");
 
-        std::optional<CoordinatesType> distance = AppProtocol::receiveDistanceResponse(clientSocket);
+        std::optional<CoordinatesType> distance = PacketTransporter::receiveDistanceResponse(clientSocket);
         if (!distance.has_value())
         {
             continue;

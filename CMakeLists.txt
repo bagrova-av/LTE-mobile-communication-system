@@ -23,7 +23,7 @@ set(CORE_SOURCE_LIST
     CORE/NetworkAddress.cpp
     CORE/ClientSocket.cpp
     CORE/ServerSocket.cpp
-    CORE/AppProtocol.cpp
+    CORE/PacketTransporter.cpp
     CORE/network/BinarySerializer.cpp
     CORE/network/JsonSerializer.cpp
     COMMON/utils.cpp

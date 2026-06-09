@@ -134,6 +134,11 @@ bool ServerSocket::sendAllData(int clientFileDescriptor, const BytesBuffer& data
     return true;
 }
 
+bool ServerSocket::sendByte(int clientFileDescriptor, uint8_t byte)
+{
+    return sendAllData(clientFileDescriptor, BytesBuffer{byte});
+}
+
 std::optional<BytesBuffer> ServerSocket::receiveAllData(int clientFileDescriptor, size_t bytesCount)
 {
     if (clientFileDescriptor == -1)
