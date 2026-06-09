@@ -44,6 +44,11 @@ std::optional<ReceivedDataPacket> PacketTransporter::receiveDataPacketResponse(c
     {
         return std::nullopt;
     }
+    if (packetType.value()[0] >= static_cast<uint8_t>(PacketType::UNKNOWN))
+    {
+        Logger::warning("ClientSocket: received unknown packet type");
+        return std::nullopt;
+    }
 
     std::optional<BytesBuffer> bufferForSize = clientSocket.receiveAllData(sizeof(uint32_t));
     if (!bufferForSize.has_value())
@@ -81,7 +86,11 @@ std::optional<ReceivedDataPacket> PacketTransporter::receiveDataPacketRequest(in
     {
         return std::nullopt;
     }
-    if (packetType.value() )
+    if (packetType.value()[0] >= static_cast<uint8_t>(PacketType::UNKNOWN))
+    {
+        Logger::warning("ClientSocket: received unknown packet type");
+        return std::nullopt;
+    }
 
     std::optional<BytesBuffer> bufferForSize = ServerSocket::receiveAllData(clientFileDescriptor, sizeof(uint32_t));
     if (!bufferForSize.has_value())

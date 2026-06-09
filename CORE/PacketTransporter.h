@@ -16,7 +16,8 @@ enum class PacketType : uint8_t
     SMS_RECEIVE,
     SMS_STATUS,
     LOCATION, //legacy
-    DISTANCE //legacy
+    DISTANCE, //legacy
+    UNKNOWN
 };
 
 struct ReceivedDataPacket
