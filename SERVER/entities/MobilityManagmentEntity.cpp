@@ -89,7 +89,11 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
     }
 
     M_TMSI m_tmsi = generateTMSI();
-    targetBaseStation->registerClient(m_tmsi, clientFileDescriptor);
+    if (!targetBaseStation->registerClient(m_tmsi, clientFileDescriptor))
+    {
+        Logger::warning("Error: failed to register the client at the base station with id " + std::to_string(baseStationId));
+        return std::nullopt;
+    }
 
     homeLocationAndEquipmentIdentityRegister->updateSubscriberSessionData(imsi, id, std::chrono::system_clock::now());
     homeLocationAndEquipmentIdentityRegister->updateSubscriberStatus(imsi, SubscriberStatus::ACTIVE);

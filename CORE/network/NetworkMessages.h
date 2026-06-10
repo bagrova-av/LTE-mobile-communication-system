@@ -20,8 +20,38 @@ struct SearchRequest
     LocationPoint3D position;
 };
 
+struct RrcResponse
+{
+    BaseStationId baseStationId;
+};
+
+struct RrcReject
+{
+    std::string reason;
+};
+
+struct AttachAccept
+{
+    M_TMSI m_tmsi;
+};
+
+struct AttachReject
+{
+    std::string reason;
+};
+
+struct ErrorResponse
+{
+    std::string message;
+};
+
 using NetworkMessage = std::variant<AttachRequest,
                                     SearchRequest,
-                                    LocationPoint3D>;
+                                    AttachAccept,
+                                    AttachReject,
+                                    RrcResponse,
+                                    RrcReject,
+                                    LocationPoint3D,
+                                    ErrorResponse>;
 
 #endif

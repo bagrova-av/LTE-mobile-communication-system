@@ -10,19 +10,20 @@ BaseStation::BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& p
     bufferBytesSizePerConnection(bufferBytesSizePerConnection)
 {} 
 
-void BaseStation::registerClient(M_TMSI m_tmsi, int clientFileDescriptor)
+bool BaseStation::registerClient(M_TMSI m_tmsi, int clientFileDescriptor)
 {
     std::lock_guard<std::mutex> lock(bsMutex);
 
     if (connectedClients.size() >= numberSupportedConnections)
     {
-        return;
+        return false;
     }
     connectedClients.emplace(m_tmsi, std::make_unique<ClientContext>(m_tmsi, 
                                                                     clientFileDescriptor,
                                                                     UEState::CONNECTED
                                                                 )
     );
+    return true;
 }
 
 ClientContext* BaseStation::findClientContext(M_TMSI m_tmsi)

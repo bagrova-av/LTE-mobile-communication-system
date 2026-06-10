@@ -9,12 +9,14 @@ enum class PacketType : uint8_t
 {
     RRC_SEARCH,
     RRC_RESPONSE,
+    RRC_REJECT,
     ATTACH_REQUEST,
     ATTACH_ACCEPT,
     ATTACH_REJECT,
     SMS_SEND,
     SMS_RECEIVE,
     SMS_STATUS,
+    ERROR_MESSAGE,
     LOCATION, //legacy for compatibility
     DISTANCE, //legacy for compatibility
     UNKNOWN

@@ -10,8 +10,18 @@
 #include "AppParams.h"
 #include "../../COMMON/ThreadSafeQueue.h"
 
+enum class TaskType
+{
+    ATTACH,
+    LOCATION, //legacy for compatibility
+    SEND_SMS,
+    HANDOVER,
+    DETACH
+};
+
 struct NetworkTask
 {
+    TaskType type;
     LocationPoint3D location;
     Protocol protocol;
 };

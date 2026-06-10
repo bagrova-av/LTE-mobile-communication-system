@@ -63,10 +63,16 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    ServerApp server(static_cast<uint16_t>(serverPort),
-                     params.value().initialLocation.value());
-    server.process();
-
+    try
+    {
+        ServerApp server(static_cast<uint16_t>(serverPort),
+                         params.value().initialLocation.value());
+        server.process();
+    }
+    catch(const std::exception& ex)
+    {
+        Logger::error(ex.what());
+    }
     Logger::info("ServerApp shutting down\n");
     return 0;
 }

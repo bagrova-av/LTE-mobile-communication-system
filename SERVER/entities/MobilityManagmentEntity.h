@@ -27,15 +27,16 @@ private:
     M_TMSI nextTMSI = 100;
     std::mutex mmeMutex;
 
-    BaseStation* getBaseStationById(BaseStationId baseStationId);
     M_TMSI generateTMSI();
-    std::optional<BaseStationId> findBestBaseStation(const LocationPoint3D& clientLocation);
     bool detachClientWithoutMutex(M_TMSI m_tmsi); 
 
 public:
     explicit MobilityManagmentEntity(MmeId id,
                                     std::vector<std::unique_ptr<BaseStation>> baseStations,
                                     std::unique_ptr<HlrEirInterface> hlrEir);
+
+    BaseStation* getBaseStationById(BaseStationId baseStationId);
+    std::optional<BaseStationId> findBestBaseStation(const LocationPoint3D& clientLocation);
 
     std::optional<M_TMSI> attachClient(const IMEI& imei, const IMSI& imsi,
                                        BaseStationId baseStationId, int clientFileDescriptor);

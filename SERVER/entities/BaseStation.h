@@ -26,7 +26,7 @@ public:
     BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
                 size_t numberSupportedConnections, size_t bufferBytesSizePerConnection);
 
-    void registerClient(M_TMSI m_tmsi, int clientFileDescriptor);
+    bool registerClient(M_TMSI m_tmsi, int clientFileDescriptor);
     void removeClient(M_TMSI m_tmsi);
     float calculateSignalStrength(const LocationPoint3D& clientLocation) const;
     bool pushMessageToBuffer(M_TMSI m_tmsi, const BytesBuffer& data);
