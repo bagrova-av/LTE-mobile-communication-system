@@ -3,6 +3,7 @@
 #define HLR_EIR_INTERFACE_H
 
 #include <optional>
+#include <chrono>
 
 #include "../../../CORE/types.h"
 

@@ -142,7 +142,7 @@ bool PacketTransporter::sendDataPacketResponse(int clientFileDescriptor,
     return ServerSocket::sendAllData(clientFileDescriptor, data);
 }
 
-static std::optional<CoordinatesType> receiveDistanceResponse(const ClientSocket& clientSocket)
+std::optional<CoordinatesType> PacketTransporter::receiveDistanceResponse(const ClientSocket& clientSocket)
 {
     std::optional<ReceivedDataPacket> dataPacket = receiveDataPacketResponse(clientSocket);
     if (!dataPacket.has_value())

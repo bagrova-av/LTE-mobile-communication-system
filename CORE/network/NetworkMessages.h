@@ -20,6 +20,8 @@ struct SearchRequest
     LocationPoint3D position;
 };
 
-using NetworkMessage = std::variant<AttachRequest, SearchRequest>;
+using NetworkMessage = std::variant<AttachRequest,
+                                    SearchRequest,
+                                    LocationPoint3D>;
 
 #endif

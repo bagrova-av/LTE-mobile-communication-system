@@ -2,7 +2,7 @@
 #include "../../COMMON/constants.h"
 #include "../../COMMON/logging/Logger.h"
 
-explicit MobilityManagmentEntity::MobilityManagmentEntity(MmeId id,
+MobilityManagmentEntity::MobilityManagmentEntity(MmeId id,
                                                         std::vector<std::unique_ptr<BaseStation>> baseStations,
                                                         std::unique_ptr<HlrEirInterface> hlrEir) :
     id(id),

@@ -2,18 +2,17 @@
 #ifndef SERIALIZER_INTERFACE_H
 #define SERIALIZER_INTERFACE_H
 
-#include <vector>
-#include <optional>
-
-#include "../types.h"
+#include "NetworkMessages.h"
+#include "../PacketTransporter.h"
 
 class SerializerInterface
 {
 public:
     virtual ~SerializerInterface() = default;
 
-    virtual BytesBuffer serialize(const LocationPoint3D& point) const = 0;
-    virtual std::optional<LocationPoint3D> deserialize(const BytesBuffer& data) const = 0;
+    virtual BytesBuffer serialize(const NetworkMessage& message) const = 0;
+    virtual std::optional<NetworkMessage> deserialize(PacketType packetType,
+                                                      const BytesBuffer& dataNetworkFormat) const = 0;
 };
 
 #endif

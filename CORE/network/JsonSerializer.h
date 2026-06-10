@@ -2,7 +2,6 @@
 #ifndef JSON_SERIALIZER_H
 #define JSON_SERIALIZER_H
 
-#include "../types.h"
 #include "SerializerInterface.h"
 
 class JsonSerializer : public SerializerInterface
@@ -10,8 +9,9 @@ class JsonSerializer : public SerializerInterface
 public:
     virtual ~JsonSerializer() = default;
 
-    virtual BytesBuffer serialize(const LocationPoint3D& point) const;
-    virtual std::optional<LocationPoint3D> deserialize(const BytesBuffer& dataNetworkFormat) const;
+    virtual BytesBuffer serialize(const NetworkMessage& message) const override;
+    virtual std::optional<NetworkMessage> deserialize(PacketType packetType,
+                                                      const BytesBuffer& dataNetworkFormat) const override;
 };
 
 #endif

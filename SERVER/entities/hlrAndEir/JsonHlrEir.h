@@ -2,6 +2,8 @@
 #ifndef JSON_HLR_EIR_H
 #define JSON_HLR_EIR_H
 
+#include <unordered_map>
+
 #include "HlrEirInterface.h"
 
 class JsonHlrEir : public HlrEirInterface
