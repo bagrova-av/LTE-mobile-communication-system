@@ -25,6 +25,14 @@ App::~App()
     Logger::info("Application shutdown complete");
 }
 
+void App::sendLocationToServerAsync(const LocationPoint3D& location, Protocol protocol)
+{
+    if(!networkTasks.push(NetworkTask{TaskType::LOCATION, location, protocol}))
+    {
+        Logger::warning("App is shutting down. Cannot send location to server");
+    }
+}
+
 void App::networkThreadWorker()
 {
     Logger::info("Client network thread started");
