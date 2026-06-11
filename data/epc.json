@@ -1,0 +1,9 @@
+{
+  "simtel_ttl": 120,
+  "hlrEir":
+  {
+    "format": "JSON",
+    "provider": "file",
+    "path": "../data/hlrEir.json"
+  }
+}

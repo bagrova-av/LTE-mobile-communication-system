@@ -4,6 +4,17 @@
 
 #include <cstring>
 
+BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
+{
+    return BytesBuffer{}; //TODO
+}
+
+std::optional<NetworkMessage> BinarySerializer::deserialize(PacketType packetType,
+                                                      const BytesBuffer& dataNetworkFormat) const
+{
+    return std::nullopt; //TODO
+}
+
 // BytesBuffer BinarySerializer::serialize(const LocationPoint3D& point) const
 // {
 //     BytesBuffer dataNetworkFormat(sizeof(CoordinatesType) * LocationPoint3D::COUNT_COMPONENTS_IN_POINT);

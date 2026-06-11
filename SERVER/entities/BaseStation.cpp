@@ -1,20 +1,24 @@
 #include "BaseStation.h"
 
-BaseStation::BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
-                        size_t numberSupportedConnections, size_t bufferBytesSizePerConnection) :
-    id(id),
-    mmeId(mmeId),
-    position(position),
-    coverageRadius(coverageRadius),
-    numberSupportedConnections(numberSupportedConnections),
-    bufferBytesSizePerConnection(bufferBytesSizePerConnection)
-{} 
+// BaseStation::BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
+//                         size_t numberSupportedConnections, size_t bufferBytesSizePerConnection) :
+//     id(id),
+//     mmeId(mmeId),
+//     position(position),
+//     coverageRadius(coverageRadius),
+//     numberSupportedConnections(numberSupportedConnections),
+//     bufferBytesSizePerConnection(bufferBytesSizePerConnection)
+// {}
+
+BaseStation::BaseStation(const BaseStationConfig& config) :
+    config(config)
+{ }
 
 bool BaseStation::registerClient(M_TMSI m_tmsi, int clientFileDescriptor)
 {
     std::lock_guard<std::mutex> lock(bsMutex);
 
-    if (connectedClients.size() >= numberSupportedConnections)
+    if (connectedClients.size() >= config.numberSupportedConnections)
     {
         return false;
     }
@@ -44,12 +48,12 @@ void BaseStation::removeClient(M_TMSI m_tmsi)
 
 float BaseStation::calculateSignalStrength(const LocationPoint3D& clientLocation) const
 {
-    CoordinatesType distance = position.distanceTo(clientLocation);
-    if (distance > coverageRadius)
+    CoordinatesType distance = config.position.distanceTo(clientLocation);
+    if (distance > config.coverageRadius)
     {
         return std::numeric_limits<float>::lowest();
     }
-    return 1.0f - (distance / coverageRadius); 
+    return 1.0f - (distance / config.coverageRadius);
 }
 
 bool BaseStation::pushMessageToBuffer(M_TMSI m_tmsi, const BytesBuffer& data)
@@ -102,5 +106,5 @@ bool BaseStation::hasEnoughSpaceInBuffer(ClientContext* clientContext, const Byt
     {
         return false;
     }
-    return clientContext->currentBufferBytesSize + data.size() <= bufferBytesSizePerConnection;
+    return clientContext->currentBufferBytesSize + data.size() <= config.bufferBytesSizePerConnection;
 }

@@ -6,16 +6,18 @@
 #include <mutex>
 
 #include "ClientContext.h"
+#include "../../CORE/BaseStationConfig.h"
 
 class BaseStation
 {
 private:
-    BaseStationId id;
-    LocationPoint3D position;
-    CoordinatesType coverageRadius;
-    MmeId mmeId;
-    size_t numberSupportedConnections;
-    size_t bufferBytesSizePerConnection;
+    BaseStationConfig config;
+    // BaseStationId id;
+    // LocationPoint3D position;
+    // CoordinatesType coverageRadius;
+    // MmeId mmeId;
+    // size_t numberSupportedConnections;
+    // size_t bufferBytesSizePerConnection;
     std::unordered_map<M_TMSI, std::unique_ptr<ClientContext>> connectedClients;
     std::mutex bsMutex;
 
@@ -23,8 +25,9 @@ private:
     bool hasEnoughSpaceInBuffer(ClientContext* clientContext, const BytesBuffer& data) const;
 
 public:
-    BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
-                size_t numberSupportedConnections, size_t bufferBytesSizePerConnection);
+    // BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
+    //             size_t numberSupportedConnections, size_t bufferBytesSizePerConnection);
+    BaseStation(const BaseStationConfig& config);
 
     bool registerClient(M_TMSI m_tmsi, int clientFileDescriptor);
     void removeClient(M_TMSI m_tmsi);
@@ -45,37 +48,37 @@ public:
 
 inline void BaseStation::setMME(MmeId otherMmeId)
 {
-    mmeId = otherMmeId;
+    config.mmeId = otherMmeId;
 }
 
 inline BaseStationId BaseStation::getId() const
 {
-    return id;
+    return config.id;
 }
 
 inline LocationPoint3D BaseStation::getPosition() const
 {
-    return position;
+    return config.position;
 }
 
 inline CoordinatesType BaseStation::getCoverageRadius() const
 {
-    return coverageRadius;
+    return config.coverageRadius;
 }
 
 inline MmeId BaseStation::getIdMME() const
 {
-    return mmeId;
+    return config.mmeId;
 }
 
 inline size_t BaseStation::getNumberSupportedConnections() const
 {
-    return numberSupportedConnections;
+    return config.numberSupportedConnections;
 }
 
 inline size_t BaseStation::getBufferSizePerConnection() const
 {
-    return bufferBytesSizePerConnection;
+    return config.bufferBytesSizePerConnection;
 }
 
 #endif

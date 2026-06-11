@@ -328,43 +328,43 @@ int32_t parsePort(const std::string& portStr)
     return port.value();
 }
 
-bool parseBaseStationsJSON(const std::string& configPath, std::vector<std::unique_ptr<BaseStation>>& baseStations)
+std::optional<std::vector<BaseStationConfig>> parseBaseStationsJSON(const std::string& configPath)
 {
     std::ifstream configFile(configPath);
     if (!configFile.is_open())
     {
         Logger::error("Error: could not open baseStations config file: " + configPath);
-        return false;
+        return std::nullopt;
     }
 
     json data;
+    std::vector<BaseStationConfig> baseStations;
     try
     {
         configFile >> data;
         if (!data.contains("baseStations") || !data["baseStations"].is_array())
         {
-            return false;
+            return std::nullopt;
         }
 
         const auto& items = data["baseStations"];
         baseStations.reserve(items.size());
         for (const auto& item : items)
         {
-            size_t id = item["id"].get<size_t>();
-            size_t mmeId = item["mmeId"].get<size_t>();
+            BaseStationId id = item["id"].get<BaseStationId>();
+            MmeId mmeId = item["mmeId"].get<MmeId>();
             std::vector<CoordinatesType> positionComponents = item["position"].get<std::vector<CoordinatesType>>();
             CoordinatesType coverageRadius = item["coverageRadius"].get<CoordinatesType>();
             size_t maxSupportedConnections = item["maxSupportedConnections"].get<size_t>();
             size_t bufferBytesSizePerConnection = item["bufferBytesSizePerConnection"].get<size_t>();
             LocationPoint3D position;
             position.updateFromVector(positionComponents);
-            baseStations.emplace_back(std::make_unique<BaseStation>(id,
-                                                                    mmeId,
-                                                                    position,
-                                                                    coverageRadius,
-                                                                    maxSupportedConnections,
-                                                                    bufferBytesSizePerConnection
-                                                                )
+            baseStations.emplace_back(BaseStationConfig{id,
+                                                        mmeId,
+                                                        position,
+                                                        coverageRadius,
+                                                        maxSupportedConnections,
+                                                        bufferBytesSizePerConnection}
             );
         }
     }
@@ -372,9 +372,9 @@ bool parseBaseStationsJSON(const std::string& configPath, std::vector<std::uniqu
     {
         Logger::error(std::format("Error: Failed to process JSON file with baseStations config.\nDetails: {}", 
                                     ex.what()));
-        return false;
+        return std::nullopt;
     }
 
     configFile.close();
-    return true;
+    return baseStations;
 }

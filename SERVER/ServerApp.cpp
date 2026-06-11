@@ -14,9 +14,14 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location) :
     serverSocket()
 {
     std::vector<std::unique_ptr<BaseStation>> baseStations;
-    if (!parseBaseStationsJSON("../data/nodes.json", baseStations))
+    auto baseStationsConfigs = parseBaseStationsJSON("../data/nodes.json");
+    if (!baseStationsConfigs.has_value())
     {
         throw std::runtime_error("ServerApp: failed to load base stations from their config file");
+    }
+    for (const auto& baseStationConfig : baseStationsConfigs.value())
+    {
+        baseStations.emplace_back(std::make_unique<BaseStation>(baseStationConfig));
     }
 
     auto hlrEir = std::make_unique<JsonHlrEir>();
@@ -229,7 +234,7 @@ void ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, Bas
                                               data);
 }
 
-void sendRrcReject(int clientFileDescriptor, Protocol protocol, std::string reason)
+void ServerApp::sendRrcReject(int clientFileDescriptor, Protocol protocol, std::string reason)
 {
     RrcReject rrcReject{reason};
     auto serializer = SerializerFactory::createSerializer(protocol);
@@ -284,7 +289,7 @@ void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, st
                                               data);
 }
 
-void sendErrorResponse(int clientFileDescriptor, Protocol protocol, std::string reason)
+void ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, std::string reason)
 {
     ErrorResponse errorResponse{reason};
     auto serializer = SerializerFactory::createSerializer(protocol);

@@ -24,9 +24,9 @@ App::~App()
     Logger::info("Application shutdown complete");
 }
 
-void App::pushTaskToQueue(TaskType type, Protocol protocol, const TaskData& data)
+void App::pushTaskToQueue(TaskType type, Protocol protocol, TaskData data)
 {
-    if(!networkTasks.push(NetworkTask{type, protocol, data}))
+    if(!networkTasks.push(NetworkTask{type, protocol, std::move(data)}))
     {
         Logger::warning("App is shutting down. Cannot send task to the server");
     }

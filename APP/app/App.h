@@ -30,7 +30,7 @@ private:
                             uint8_t protocolHeader,
                             const SerializerInterface& serializer,
                             const NetworkTask& networkTask);
-    void pushTaskToQueue(TaskType type, Protocol protocol, const TaskData& data);
+    void pushTaskToQueue(TaskType type, Protocol protocol, TaskData data);
 
 public:
     App(const AppConfig& appConfig, const AppState& initialState);
