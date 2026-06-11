@@ -2,7 +2,6 @@
 #include "../../CORE/PacketTransporter.h"
 #include "../../COMMON/logging/Logger.h"
 #include "../../CORE/network/SerializerFactory.h"
-#include "../../CORE/ClientSocket.h"
 
 #include <iostream>
 
@@ -25,22 +24,140 @@ App::~App()
     Logger::info("Application shutdown complete");
 }
 
+void App::pushTaskToQueue(TaskType type, Protocol protocol, const TaskData& data)
+{
+    if(!networkTasks.push(NetworkTask{type, protocol, data}))
+    {
+        Logger::warning("App is shutting down. Cannot send task to the server");
+    }
+}
+
 void App::sendLocationToServerAsync(const LocationPoint3D& location, Protocol protocol)
 {
-    if(!networkTasks.push(NetworkTask{TaskType::LOCATION, location, protocol}))
+    pushTaskToQueue(TaskType::LOCATION, protocol, LocationTaskData{location});
+}
+
+void App::sendAttachTaskToServerAsync(Protocol protocol)
+{
+    pushTaskToQueue(TaskType::ATTACH, protocol, EmptyTaskData{});
+}
+
+void App::sendDetachTaskToServerAsync(Protocol protocol)
+{
+    pushTaskToQueue(TaskType::DETACH, protocol, EmptyTaskData{});
+}
+
+void App::handleAttachTask(const ClientSocket& clientSocket,
+                           uint8_t protocolHeader,
+                           const SerializerInterface& serializer)
+{
+    SearchRequest searchRequest{config.imsi, state.location};
+    if (!PacketTransporter::sendDataPacketRequest(clientSocket,
+                                                  protocolHeader,
+                                                  PacketType::RRC_SEARCH,
+                                                  serializer.serialize(searchRequest)))
     {
-        Logger::warning("App is shutting down. Cannot send location to server");
+        Logger::error("App: failed to send RRC_Search request to the server");
+        return;
     }
+
+    auto rrcResponse = PacketTransporter::receiveDataPacketResponse(clientSocket);
+    if (rrcResponse.has_value())
+    {
+        if (rrcResponse.value().packetType == PacketType::RRC_RESPONSE)
+        {
+            auto message = serializer.deserialize(PacketType::RRC_RESPONSE,
+                                                    rrcResponse.value().data);
+            if (message.has_value())
+            {
+                const auto& rrc = std::get<RrcResponse>(message.value());
+
+                AttachRequest attachRequest{config.imsi, config.imei, config.msisdn, rrc.baseStationId};
+                if (!PacketTransporter::sendDataPacketRequest(clientSocket,
+                                                              protocolHeader,
+                                                              PacketType::ATTACH_REQUEST,
+                                                              serializer.serialize(attachRequest)))
+                {
+                    Logger::error("App: failed to send ATTACH request to the server");
+                    return;
+                }
+
+                auto attachResponse = PacketTransporter::receiveDataPacketResponse(clientSocket);
+                if (attachResponse.has_value())
+                {
+                    if (attachResponse.value().packetType == PacketType::ATTACH_ACCEPT)
+                    {
+                        auto messageAccept = serializer.deserialize(PacketType::ATTACH_ACCEPT,
+                                                                    attachResponse.value().data);
+                        if (messageAccept.has_value())
+                        {
+                            state.m_tmsi = std::get<AttachAccept>(messageAccept.value()).m_tmsi;
+                            responsesQueue.push("Attach successful. Your M_TMSI is "
+                                                + std::to_string(state.m_tmsi.value()));
+                        }
+                    }
+                    else if (attachResponse.value().packetType == PacketType::ATTACH_REJECT)
+                    {
+                        responsesQueue.push("Attach rejected by server");
+                    }
+                }
+            }
+        }
+        else if (rrcResponse.value().packetType == PacketType::RRC_REJECT)
+        {
+            responsesQueue.push("Network rejects the connection request: no coverage");
+        }
+        else if (rrcResponse.value().packetType == PacketType::ERROR_MESSAGE)
+        {
+            auto message = serializer.deserialize(PacketType::ERROR_MESSAGE,
+                                                  rrcResponse.value().data);
+            responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
+        }
+    }
+}
+
+void App::handleLocationTask(const ClientSocket& clientSocket,
+                            uint8_t protocolHeader,
+                            const SerializerInterface& serializer,
+                            const NetworkTask& networkTask)
+{
+    LocationPoint3D location = std::get<LocationTaskData>(networkTask.data).location;
+    std::optional<BytesBuffer> serializedLocation = serializer.serialize(location);
+    if (!serializedLocation.has_value())
+    {
+        Logger::error("Failed to serialize location for network transfer");
+        return;
+    }
+    if (!PacketTransporter::sendDataPacketRequest(clientSocket,
+                                                    protocolHeader,
+                                                    PacketType::LOCATION,
+                                                    serializedLocation.value()))
+    {
+        Logger::error("CommandMove: failed to send data to the server");
+        return;
+    }
+    Logger::info("The data with the current position of the client has been sent to the server successfully");
+
+    std::optional<CoordinatesType> distance = PacketTransporter::receiveDistanceResponse(clientSocket);
+    if (!distance.has_value())
+    {
+        return;
+    }
+    std::string response = "Distance from " + convertLocationToString (location)
+                            + " to the server: " + std::to_string(distance.value());
+    responsesQueue.push(std::move(response));
+    Logger::info("Received distance from the server. The distance from the client to the server is " +
+                std::to_string(distance.value()));
 }
 
 void App::networkThreadWorker()
 {
     Logger::info("Client network thread started");
-    std::string response = "";
+    // std::string response = "";
 
     ClientSocket clientSocket;
     Logger::info("Connecting to server at " +
-                    convertIPv4ToString(getIP()) + ":" + std::to_string(getPort()));
+                convertIPv4ToString(getIP()) + ":" + std::to_string(getPort()));
     if (!clientSocket.connectToServer(getIP(), getPort()))
     {
         return;
@@ -65,99 +182,101 @@ void App::networkThreadWorker()
         {
             case TaskType::ATTACH :
             {
-                SearchRequest searchRequest{config.imsi, state.location};
-                if (!PacketTransporter::sendDataPacketRequest(clientSocket,
-                                                              protocolHeader,
-                                                              PacketType::RRC_SEARCH,
-                                                              serializer->serialize(searchRequest)))
-                {
-                    Logger::error("App: failed to send RRC_Search request to the server");
-                    continue;
-                }
+                // SearchRequest searchRequest{config.imsi, state.location};
+                // if (!PacketTransporter::sendDataPacketRequest(clientSocket,
+                //                                               protocolHeader,
+                //                                               PacketType::RRC_SEARCH,
+                //                                               serializer->serialize(searchRequest)))
+                // {
+                //     Logger::error("App: failed to send RRC_Search request to the server");
+                //     continue;
+                // }
 
-                auto rrcResponse = PacketTransporter::receiveDataPacketResponse(clientSocket);
-                if (rrcResponse.has_value())
-                {
-                    if (rrcResponse.value().packetType == PacketType::RRC_RESPONSE)
-                    {
-                        auto message = serializer->deserialize(PacketType::RRC_RESPONSE,
-                                                               rrcResponse.value().data);
-                        if (message.has_value())
-                        {
-                            const auto& rrc = std::get<RrcResponse>(message.value());
+                // auto rrcResponse = PacketTransporter::receiveDataPacketResponse(clientSocket);
+                // if (rrcResponse.has_value())
+                // {
+                //     if (rrcResponse.value().packetType == PacketType::RRC_RESPONSE)
+                //     {
+                //         auto message = serializer->deserialize(PacketType::RRC_RESPONSE,
+                //                                                rrcResponse.value().data);
+                //         if (message.has_value())
+                //         {
+                //             const auto& rrc = std::get<RrcResponse>(message.value());
 
-                            AttachRequest attachRequest{config.imsi, config.imei, config.msisdn, rrc.baseStationId};
-                            if (!PacketTransporter::sendDataPacketRequest(clientSocket,
-                                                                          protocolHeader,
-                                                                          PacketType::ATTACH_REQUEST,
-                                                                          serializer->serialize(attachRequest)))
-                            {
-                                Logger::error("App: failed to send ATTACH request to the server");
-                                continue;
-                            }
+                //             AttachRequest attachRequest{config.imsi, config.imei, config.msisdn, rrc.baseStationId};
+                //             if (!PacketTransporter::sendDataPacketRequest(clientSocket,
+                //                                                           protocolHeader,
+                //                                                           PacketType::ATTACH_REQUEST,
+                //                                                           serializer->serialize(attachRequest)))
+                //             {
+                //                 Logger::error("App: failed to send ATTACH request to the server");
+                //                 continue;
+                //             }
 
-                            auto attachResponse = PacketTransporter::receiveDataPacketResponse(clientSocket);
-                            if (attachResponse.has_value())
-                            {
-                                if (attachResponse.value().packetType == PacketType::ATTACH_ACCEPT)
-                                {
-                                    auto messageAccept = serializer->deserialize(PacketType::ATTACH_ACCEPT,
-                                                                                 attachResponse.value().data);
-                                    if (messageAccept.has_value())
-                                    {
-                                        state.m_tmsi = std::get<AttachAccept>(messageAccept.value()).m_tmsi;
-                                        responsesQueue.push("Attach successful. Your M_TMSI is "
-                                                            + std::to_string(state.m_tmsi.value()));
-                                    }
-                                }
-                                else if (attachResponse.value().packetType == PacketType::ATTACH_REJECT)
-                                {
-                                    responsesQueue.push("Attach rejected by server");
-                                }
-                            }
-                        }
-                    }
-                    else if (rrcResponse.value().packetType == PacketType::RRC_REJECT)
-                    {
-                        responsesQueue.push("Network rejects the connection request: no coverage");
-                    }
-                    else if (rrcResponse.value().packetType == PacketType::ERROR_MESSAGE)
-                    {
-                        auto message = serializer->deserialize(PacketType::ERROR_MESSAGE,
-                                                               rrcResponse.value().data);
-                        responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
-                    }
-                }
+                //             auto attachResponse = PacketTransporter::receiveDataPacketResponse(clientSocket);
+                //             if (attachResponse.has_value())
+                //             {
+                //                 if (attachResponse.value().packetType == PacketType::ATTACH_ACCEPT)
+                //                 {
+                //                     auto messageAccept = serializer->deserialize(PacketType::ATTACH_ACCEPT,
+                //                                                                  attachResponse.value().data);
+                //                     if (messageAccept.has_value())
+                //                     {
+                //                         state.m_tmsi = std::get<AttachAccept>(messageAccept.value()).m_tmsi;
+                //                         responsesQueue.push("Attach successful. Your M_TMSI is "
+                //                                             + std::to_string(state.m_tmsi.value()));
+                //                     }
+                //                 }
+                //                 else if (attachResponse.value().packetType == PacketType::ATTACH_REJECT)
+                //                 {
+                //                     responsesQueue.push("Attach rejected by server");
+                //                 }
+                //             }
+                //         }
+                //     }
+                //     else if (rrcResponse.value().packetType == PacketType::RRC_REJECT)
+                //     {
+                //         responsesQueue.push("Network rejects the connection request: no coverage");
+                //     }
+                //     else if (rrcResponse.value().packetType == PacketType::ERROR_MESSAGE)
+                //     {
+                //         auto message = serializer->deserialize(PacketType::ERROR_MESSAGE,
+                //                                                rrcResponse.value().data);
+                //         responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
+                //     }
+                // }
+                handleAttachTask(clientSocket, protocolHeader, *serializer);
                 break;
             }
             case TaskType::LOCATION :
             {
-                std::optional<BytesBuffer> serializedLocation = serializer->serialize(networkTask.value().location);
-                if (!serializedLocation.has_value())
-                {
-                    Logger::error("Failed to serialize location for network transfer");
-                    continue;
-                }
-                if (!PacketTransporter::sendDataPacketRequest(clientSocket,
-                                                              protocolHeader,
-                                                              PacketType::LOCATION,
-                                                              serializedLocation.value()))
-                {
-                    Logger::error("CommandMove: failed to send data to the server");
-                    continue;
-                }
-                Logger::info("The data with the current position of the client has been sent to the server successfully");
+                // std::optional<BytesBuffer> serializedLocation = serializer->serialize(networkTask.value().location);
+                // if (!serializedLocation.has_value())
+                // {
+                //     Logger::error("Failed to serialize location for network transfer");
+                //     continue;
+                // }
+                // if (!PacketTransporter::sendDataPacketRequest(clientSocket,
+                //                                               protocolHeader,
+                //                                               PacketType::LOCATION,
+                //                                               serializedLocation.value()))
+                // {
+                //     Logger::error("CommandMove: failed to send data to the server");
+                //     continue;
+                // }
+                // Logger::info("The data with the current position of the client has been sent to the server successfully");
 
-                std::optional<CoordinatesType> distance = PacketTransporter::receiveDistanceResponse(clientSocket);
-                if (!distance.has_value())
-                {
-                    continue;
-                }
-                response = "Distance from " + convertLocationToString (networkTask.value().location)
-                        + " to the server: " + std::to_string(distance.value());
-                responsesQueue.push(std::move(response));
-                Logger::info("Received distance from the server. The distance from the client to the server is " +
-                            std::to_string(distance.value()));
+                // std::optional<CoordinatesType> distance = PacketTransporter::receiveDistanceResponse(clientSocket);
+                // if (!distance.has_value())
+                // {
+                //     continue;
+                // }
+                // response = "Distance from " + convertLocationToString (networkTask.value().location)
+                //         + " to the server: " + std::to_string(distance.value());
+                // responsesQueue.push(std::move(response));
+                // Logger::info("Received distance from the server. The distance from the client to the server is " +
+                //             std::to_string(distance.value()));
+                handleLocationTask(clientSocket, protocolHeader, *serializer, networkTask.value());
                 break;
             }
         }

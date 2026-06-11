@@ -27,6 +27,16 @@ bool CommandActive::processValue(const std::string& value)
     {
         app.setStatus(newState);
         Logger::info("Application status successfully changed to " + stateStr);
+        if (newState)
+        {
+            app.sendAttachTaskToServerAsync(app.getProtocol());
+            Logger::info("CommandActive: initiated attach procedure");
+        }
+        else
+        {
+            app.sendDetachTaskToServerAsync(app.getProtocol());
+            Logger::info("CommandActive: initiated detach procedure");
+        }
     }
     return true;
 }

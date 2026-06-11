@@ -9,22 +9,9 @@
 #include "../../CORE/types.h"
 #include "AppParams.h"
 #include "../../COMMON/ThreadSafeQueue.h"
-
-enum class TaskType
-{
-    ATTACH,
-    LOCATION, //legacy for compatibility
-    SEND_SMS,
-    HANDOVER,
-    DETACH
-};
-
-struct NetworkTask
-{
-    TaskType type;
-    LocationPoint3D location;
-    Protocol protocol;
-};
+#include "../../CORE/ClientSocket.h"
+#include "../../CORE/network/SerializerInterface.h"
+#include "NetworkTask.h"
 
 class App
 {
@@ -36,6 +23,14 @@ private:
     std::thread networkThread;
 
     void networkThreadWorker();
+    void handleAttachTask(const ClientSocket& clientSocket,
+                          uint8_t protocolHeader,
+                          const SerializerInterface& serializer);
+    void handleLocationTask(const ClientSocket& clientSocket,
+                            uint8_t protocolHeader,
+                            const SerializerInterface& serializer,
+                            const NetworkTask& networkTask);
+    void pushTaskToQueue(TaskType type, Protocol protocol, const TaskData& data);
 
 public:
     App(const AppConfig& appConfig, const AppState& initialState);
@@ -56,6 +51,8 @@ public:
     Protocol getProtocol() const;
 
     void sendLocationToServerAsync(const LocationPoint3D& location, Protocol protocol);
+    void sendAttachTaskToServerAsync(Protocol protocol);
+    void sendDetachTaskToServerAsync(Protocol protocol);
     bool processResponses();
 };
 
