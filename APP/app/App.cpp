@@ -47,17 +47,33 @@ void App::sendDetachTaskToServerAsync(Protocol protocol)
     pushTaskToQueue(TaskType::DETACH, protocol, EmptyTaskData{});
 }
 
-void App::handleAttachTask(const ClientSocket& clientSocket,
-                           uint8_t protocolHeader,
+void App::handleAttachTask(uint8_t protocolHeader,
                            const SerializerInterface& serializer)
 {
-    SearchRequest searchRequest{config.imsi, state.location};
+    Logger::info("Connecting to server at " +
+                convertIPv4ToString(getIP()) + ":" + std::to_string(getPort()));
+    if (!clientSocket.connectToServer(getIP(), getPort()))
+    {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        state.isActive = false;
+        return;
+    }
+    Logger::info("The client has successfully connected to the server");
+
+    LocationPoint3D location;
+    {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        location = state.location; 
+    }
+    SearchRequest searchRequest{config.imsi, location};
     if (!PacketTransporter::sendDataPacketRequest(clientSocket,
                                                   protocolHeader,
                                                   PacketType::RRC_SEARCH,
                                                   serializer.serialize(searchRequest)))
     {
+        std::lock_guard<std::mutex> lock(stateMutex);
         Logger::error("App: failed to send RRC_Search request to the server");
+        state.isActive = false;
         return;
     }
 
@@ -78,7 +94,9 @@ void App::handleAttachTask(const ClientSocket& clientSocket,
                                                               PacketType::ATTACH_REQUEST,
                                                               serializer.serialize(attachRequest)))
                 {
+                    std::lock_guard<std::mutex> lock(stateMutex);
                     Logger::error("App: failed to send ATTACH request to the server");
+                    state.isActive = false;
                     return;
                 }
 
@@ -91,6 +109,7 @@ void App::handleAttachTask(const ClientSocket& clientSocket,
                                                                     attachResponse.value().data);
                         if (messageAccept.has_value())
                         {
+                            std::lock_guard<std::mutex> lock(stateMutex);
                             state.m_tmsi = std::get<AttachAccept>(messageAccept.value()).m_tmsi;
                             responsesQueue.push("Attach successful. Your M_TMSI is "
                                                 + std::to_string(state.m_tmsi.value()));
@@ -98,26 +117,62 @@ void App::handleAttachTask(const ClientSocket& clientSocket,
                     }
                     else if (attachResponse.value().packetType == PacketType::ATTACH_REJECT)
                     {
+                        std::lock_guard<std::mutex> lock(stateMutex);
                         responsesQueue.push("Attach rejected by server");
+                        state.isActive = false;
                     }
+                }
+                else
+                {
+                    responsesQueue.push("Error: server connection lost during registration");
                 }
             }
         }
         else if (rrcResponse.value().packetType == PacketType::RRC_REJECT)
         {
+            std::lock_guard<std::mutex> lock(stateMutex);
             responsesQueue.push("Network rejects the connection request: no coverage");
+            state.isActive = false;
         }
         else if (rrcResponse.value().packetType == PacketType::ERROR_MESSAGE)
         {
+            std::lock_guard<std::mutex> lock(stateMutex);
             auto message = serializer.deserialize(PacketType::ERROR_MESSAGE,
                                                   rrcResponse.value().data);
             responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
+            state.isActive = false;
         }
+    }
+    else
+    {
+        responsesQueue.push("Error: server connection lost during Radio Resource Control request");
     }
 }
 
-void App::handleLocationTask(const ClientSocket& clientSocket,
-                            uint8_t protocolHeader,
+void App::handleDetachTask(uint8_t protocolHeader, const SerializerInterface& serializer)
+{
+    if (state.m_tmsi.has_value())
+    {
+        M_TMSI m_tmsi;
+        {
+            std::lock_guard<std::mutex> lock(stateMutex);
+            m_tmsi = state.m_tmsi.value(); 
+        }
+        DetachRequest detachRequest{m_tmsi};
+        PacketTransporter::sendDataPacketRequest(clientSocket,
+                                                protocolHeader,
+                                                PacketType::DETACH_REQUEST,
+                                                serializer.serialize(detachRequest));
+    }
+    clientSocket.disconnect();
+
+    std::lock_guard<std::mutex> lock(stateMutex);
+    state.isActive = false;
+    state.m_tmsi = std::nullopt;
+    responsesQueue.push("Disconnected from network");
+}
+
+void App::handleLocationTask(uint8_t protocolHeader,
                             const SerializerInterface& serializer,
                             const NetworkTask& networkTask)
 {
@@ -129,9 +184,9 @@ void App::handleLocationTask(const ClientSocket& clientSocket,
         return;
     }
     if (!PacketTransporter::sendDataPacketRequest(clientSocket,
-                                                    protocolHeader,
-                                                    PacketType::LOCATION,
-                                                    serializedLocation.value()))
+                                                  protocolHeader,
+                                                  PacketType::LOCATION,
+                                                  serializedLocation.value()))
     {
         Logger::error("CommandMove: failed to send data to the server");
         return;
@@ -155,14 +210,14 @@ void App::networkThreadWorker()
     Logger::info("Client network thread started");
     // std::string response = "";
 
-    ClientSocket clientSocket;
-    Logger::info("Connecting to server at " +
-                convertIPv4ToString(getIP()) + ":" + std::to_string(getPort()));
-    if (!clientSocket.connectToServer(getIP(), getPort()))
-    {
-        return;
-    }
-    Logger::info("The client has successfully connected to the server");
+    // ClientSocket clientSocket;
+    // Logger::info("Connecting to server at " +
+    //             convertIPv4ToString(getIP()) + ":" + std::to_string(getPort()));
+    // if (!clientSocket.connectToServer(getIP(), getPort()))
+    // {
+    //     return;
+    // }
+    // Logger::info("The client has successfully connected to the server");
     while (true)
     {
         auto networkTask = networkTasks.pop();
@@ -245,7 +300,14 @@ void App::networkThreadWorker()
                 //         responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
                 //     }
                 // }
-                handleAttachTask(clientSocket, protocolHeader, *serializer);
+                if (clientSocket.isOpen())
+                {
+                    handleAttachTask(protocolHeader, *serializer);
+                }
+                else
+                {
+                    Logger::warning("Operation failed: no active connection to the network. Please, use 'ACTIVE true' first");
+                }
                 break;
             }
             case TaskType::LOCATION :
@@ -276,7 +338,26 @@ void App::networkThreadWorker()
                 // responsesQueue.push(std::move(response));
                 // Logger::info("Received distance from the server. The distance from the client to the server is " +
                 //             std::to_string(distance.value()));
-                handleLocationTask(clientSocket, protocolHeader, *serializer, networkTask.value());
+                if (clientSocket.isOpen())
+                {
+                    handleLocationTask(protocolHeader, *serializer, networkTask.value());
+                }
+                else
+                {
+                    Logger::warning("Operation failed: no active connection to the network. Please, use 'ACTIVE true' first");
+                }
+                break;
+            }
+            case TaskType::DETACH :
+            {
+                if (clientSocket.isOpen())
+                {
+                    handleDetachTask(protocolHeader, *serializer);
+                }
+                else
+                {
+                    Logger::warning("Operation failed: no active connection to the network. Please, use 'ACTIVE true' first");
+                }
                 break;
             }
         }

@@ -16,6 +16,7 @@ enum class PacketType : uint8_t
     SMS_SEND,
     SMS_RECEIVE,
     SMS_STATUS,
+    DETACH_REQUEST,
     ERROR_MESSAGE,
     LOCATION, //legacy for compatibility
     DISTANCE, //legacy for compatibility

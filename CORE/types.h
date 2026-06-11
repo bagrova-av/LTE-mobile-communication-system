@@ -164,5 +164,7 @@ std::ostream& operator<<(std::ostream& out, const Protocol& protocol);
 
 using BytesBuffer = std::vector<uint8_t>;
 
+using Seconds = float;
+
 #endif
 

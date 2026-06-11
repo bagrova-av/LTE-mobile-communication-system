@@ -40,6 +40,11 @@ struct AttachReject
     std::string reason;
 };
 
+struct DetachRequest
+{
+    M_TMSI m_tmsi;
+};
+
 struct ErrorResponse
 {
     std::string message;
@@ -49,6 +54,7 @@ using NetworkMessage = std::variant<AttachRequest,
                                     SearchRequest,
                                     AttachAccept,
                                     AttachReject,
+                                    DetachRequest,
                                     RrcResponse,
                                     RrcReject,
                                     LocationPoint3D,

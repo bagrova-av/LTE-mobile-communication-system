@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iostream>
 #include <thread>
+#include <format>
 
 ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location) :
     listeningPort(port),
@@ -22,6 +23,10 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location) :
     for (const auto& baseStationConfig : baseStationsConfigs.value())
     {
         baseStations.emplace_back(std::make_unique<BaseStation>(baseStationConfig));
+        Logger::info(std::format("BaseStation loaded: ID = {}, Position = [{};{};{}], Radius = {}", 
+                                baseStationConfig.id, baseStationConfig.position.x,
+                                baseStationConfig.position.y, baseStationConfig.position.z,
+                                baseStationConfig.coverageRadius));
     }
 
     auto hlrEir = std::make_unique<JsonHlrEir>();
@@ -30,7 +35,7 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location) :
         throw std::runtime_error("ServerApp: failed to load HLR(EIR)");
     }
 
-    mme = std::make_unique<MobilityManagmentEntity>(1,
+    mme = std::make_unique<MobilityManagmentEntity>(1, //TODO
                                                     std::move(baseStations),
                                                     std::move(hlrEir));
 
@@ -205,12 +210,37 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                 }
                 break;
             }
+            case PacketType::DETACH_REQUEST :
+            {
+                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::DETACH_REQUEST,
+                                                                                dataPacket.value().data);
+                if (message.has_value())
+                {
+                    const DetachRequest& detachRequest = std::get<DetachRequest>(message.value());
+                    bool isDetached = mme->detachClient(detachRequest.m_tmsi);
+                    if (isDetached)
+                    {
+                        Logger::info("Client with M_TMSI = " + std::to_string(detachRequest.m_tmsi)
+                                    + " detached successfully");
+                    }
+                    else
+                    {
+                        Logger::info("Detach failed for TMSI = "
+                                    + std::to_string(detachRequest.m_tmsi));
+                    }
+                    currentTmsi = std::nullopt;
+                    ServerSocket::closeClientConnection(clientFileDescriptor);
+                    return; 
+                }
+                break;
+            }
         }
     }
 
     if (currentTmsi.has_value())
     {
         mme->detachClient(currentTmsi.value());
+        currentTmsi = std::nullopt;
     }
     ServerSocket::closeClientConnection(clientFileDescriptor);
 }

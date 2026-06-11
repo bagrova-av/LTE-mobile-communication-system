@@ -18,16 +18,18 @@ class App
 private:
     const AppConfig config;
     AppState state;
+    mutable std::mutex stateMutex;
+    ClientSocket clientSocket;
     ThreadSafeQueue<NetworkTask> networkTasks;
     ThreadSafeQueue<std::string> responsesQueue;
     std::thread networkThread;
 
     void networkThreadWorker();
-    void handleAttachTask(const ClientSocket& clientSocket,
-                          uint8_t protocolHeader,
+    void handleAttachTask(uint8_t protocolHeader,
                           const SerializerInterface& serializer);
-    void handleLocationTask(const ClientSocket& clientSocket,
-                            uint8_t protocolHeader,
+    void handleDetachTask(uint8_t protocolHeader,
+                          const SerializerInterface& serializer);
+    void handleLocationTask(uint8_t protocolHeader,
                             const SerializerInterface& serializer,
                             const NetworkTask& networkTask);
     void pushTaskToQueue(TaskType type, Protocol protocol, TaskData data);
@@ -60,21 +62,24 @@ public:
 
 inline void App::setStatus(bool status)
 {
+    std::lock_guard<std::mutex> lock(stateMutex);
     state.isActive = status;
 }
 
 inline void App::setLocation(const LocationPoint3D& newLocation, const LocationFlags& flags)
 {
+    std::lock_guard<std::mutex> lock(stateMutex);
     state.location.updateWithFlags(newLocation, flags);
 }
 
 inline void App::setProtocol(Protocol protocol)
 {
+    std::lock_guard<std::mutex> lock(stateMutex);
     state.protocol = protocol;
 }
 
 inline const IPv4& App::getIP() const
-{ 
+{
     return config.netAddr.getIP(); 
 }
 
@@ -109,17 +114,20 @@ inline const Nodes& App::getNodes() const
 }
 
 inline const LocationPoint3D& App::getLocation() const
-{ 
+{
+    std::lock_guard<std::mutex> lock(stateMutex);
     return state.location; 
 }
 
 inline bool App::getStatus() const
 {
+    std::lock_guard<std::mutex> lock(stateMutex);
     return state.isActive;
 }
 
 inline Protocol App::getProtocol() const
 {
+    std::lock_guard<std::mutex> lock(stateMutex);
     return state.protocol;
 }
 

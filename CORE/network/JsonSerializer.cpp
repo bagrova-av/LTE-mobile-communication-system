@@ -42,6 +42,10 @@ BytesBuffer JsonSerializer::serialize(const NetworkMessage& message) const
                     {
                         dataJSON["reason"] = arg.reason;
                     }
+                    else if constexpr (std::is_same_v<T, DetachRequest>)
+                    {
+                        dataJSON["m_tmsi"] = arg.m_tmsi;
+                    }
                     else if constexpr (std::is_same_v<T, LocationPoint3D>)
                     {
                         dataJSON["x"] = arg.x;
@@ -98,6 +102,10 @@ std::optional<NetworkMessage> JsonSerializer::deserialize(PacketType packetType,
             case PacketType::LOCATION :
             {
                 return LocationPoint3D{ dataJSON["x"], dataJSON["y"], dataJSON["z"] };
+            }
+            case PacketType::DETACH_REQUEST :
+            {
+                return DetachRequest{ dataJSON["m_tmsi"] };
             }
             case PacketType::ERROR_MESSAGE :
             {

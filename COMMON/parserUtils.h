@@ -9,6 +9,7 @@
 #include "../APP/app/AppParams.h"
 #include "./logging/Logger.h"
 #include "../CORE/BaseStationConfig.h"
+#include "../CORE/EpcConfig.h"
 
 std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& configPath);
 
@@ -37,6 +38,8 @@ std::optional<AppConfig> buildFinalConfig(const StartupParams& params);
 std::vector<std::string> splitCommand(const std::string& commandStr);
 
 int32_t parsePort(const std::string& portStr);
+
+std::optional<EpcConfig> parseEpcJSON(const std::string& configPath);
 
 std::optional<std::vector<BaseStationConfig>> parseBaseStationsJSON(const std::string& configPath);
 

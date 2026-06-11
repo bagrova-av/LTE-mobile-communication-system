@@ -363,6 +363,41 @@ int32_t parsePort(const std::string& portStr)
     return port.value();
 }
 
+std::optional<EpcConfig> parseEpcJSON(const std::string& configPath)
+{
+    std::ifstream configFile(configPath);
+    if (!configFile.is_open())
+    {
+        Logger::error("Error: could not open evolved packet core config file: " + configPath);
+        return std::nullopt;
+    }
+
+    json data;
+    EpcConfig epcConfig;
+    try
+    {
+        configFile >> data;
+        epcConfig.simtelTtl = data["simtel_ttl"].get<Seconds>();
+        
+        auto hlrEir = data["hlrEir"];
+        epcConfig.hlrEir.format = hlrEir["format"].get<std::string>();
+        epcConfig.hlrEir.provider = hlrEir["provider"].get<std::string>();
+        epcConfig.hlrEir.path = hlrEir["path"].get<std::string>();
+
+        epcConfig.nodesConfigFile = data["nodes_file"].get<std::string>();
+        epcConfig.mmeConfigFile = data["mme_config"].get<std::string>();
+    }
+    catch(const std::exception& ex)
+    {
+        Logger::error(std::format("Error: Failed to process JSON file with  evolved packet core config.\nDetails: {}", 
+                                    ex.what()));
+        return std::nullopt;
+    }
+
+    configFile.close();
+    return epcConfig;
+}
+
 std::optional<std::vector<BaseStationConfig>> parseBaseStationsJSON(const std::string& configPath)
 {
     std::ifstream configFile(configPath);
