@@ -45,6 +45,7 @@ public:
     const NetworkAddress& getNetworkAddress() const;
     const IMEI& getIMEI() const;
     const IMSI& getIMSI() const;
+    const MSISDN& getMSISDN() const;
     const Nodes& getNodes() const;
     const LocationPoint3D& getLocation() const;
     bool getStatus() const;
@@ -95,6 +96,11 @@ inline const IMEI& App::getIMEI() const
 inline const IMSI& App::getIMSI() const
 {
     return config.imsi;
+}
+
+inline const MSISDN& App::getMSISDN() const
+{
+    return config.msisdn;
 }
 
 inline const Nodes& App::getNodes() const

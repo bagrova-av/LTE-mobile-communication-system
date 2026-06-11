@@ -77,6 +77,24 @@ bool handleIMSIArgument(int argc, char** argv, size_t& i,
     return true;
 }
 
+bool handleMSISDNArgument(int argc, char** argv, size_t& i,
+                          const std::string& flagName, std::optional<std::string>& targetField)
+{
+    if (i + 1 >= argc)
+    {
+        Logger::error("Error: Missing value for " + flagName);
+        return false;
+    }
+
+    targetField = argv[i+1];
+    if (!validateMSISDN(targetField.value()))
+    {
+        return false;
+    }
+    ++i;
+    return true;
+}
+
 bool handleLocationArgument(int argc, char** argv, size_t& i,
                           const std::string& flagName, std::optional<LocationPoint3D>& targetField)
 {
@@ -179,6 +197,13 @@ std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& config
                 return std::nullopt;
             }
         }
+        else if (arg == "-m" || arg == "--msisdn")
+        {
+            if (!handleMSISDNArgument(argc, argv, i, arg, appConfig.msisdn))
+            {
+                return std::nullopt;
+            }
+        }
         else if (arg == "-n" || arg == "--nodes")
         {
             if (!handleStringArgument(argc, argv, i, arg, appConfig.nodes))
@@ -190,7 +215,7 @@ std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& config
         {
             Logger::error("Error: unknown argument (" + arg + "). "
                           "When launching the application, the following flags are allowed: "
-                          "-a/--ip, -p/--port, -e/--imei, -i/--imsi, -l/--loc, -k/--config, -n/--nodes");
+                          "-a/--ip, -p/--port, -e/--imei, -i/--imsi, -m/--msisdn, -l/--loc, -k/--config, -n/--nodes");
             return std::nullopt;
         }
     }
@@ -241,6 +266,15 @@ bool parseJSON(const std::string& configPath, StartupParams& appConfig)
             }
             appConfig.imsi = imsiTemp;
         }
+        if (!appConfig.msisdn.has_value() && data.contains("msisdn"))
+        {
+            std::string msisdnTemp = data["msisdn"].get<std::string>();
+            if (!validateMSISDN(msisdnTemp))
+            {
+                return false;
+            }
+            appConfig.msisdn = msisdnTemp;
+        }
         if (!appConfig.initialLocation.has_value() && data.contains("loc"))
         {
             appConfig.initialLocation = parseLocation(data["loc"].get<std::vector<CoordinatesType>>());
@@ -264,7 +298,7 @@ bool parseJSON(const std::string& configPath, StartupParams& appConfig)
 std::optional<AppConfig> buildFinalConfig(const StartupParams& params)
 {
     if (!params.ip.has_value() || !params.port.has_value() || !params.imei.has_value()
-        || !params.imsi.has_value() || !params.initialLocation.has_value())
+        || !params.imsi.has_value() || !params.msisdn.has_value() || !params.initialLocation.has_value())
     {
         Logger::error("Error: missing required parameters. Please, provide them via CLI or JSON config");
         return std::nullopt;
@@ -276,6 +310,7 @@ std::optional<AppConfig> buildFinalConfig(const StartupParams& params)
             NetworkAddress(params.ip.value(), params.port.value()),
             params.imsi.value(),
             params.imei.value(),
+            params.msisdn.value(),
             params.nodes
         };
     }

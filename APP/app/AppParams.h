@@ -25,10 +25,10 @@ struct AppConfig
 
     AppConfig() = default;
     AppConfig(const NetworkAddress& addr,
-              const IMSI& imsi, const IMEI& imei,
+              const IMSI& imsi, const IMEI& imei, const MSISDN& msisdn,
               const Nodes& nodes);
     AppConfig(const NetworkAddress& addr,
-              const IMSI& imsi, const IMEI& imei);
+              const IMSI& imsi, const IMEI& imei, const MSISDN& msisdn);
     AppConfig(const AppConfig& other);
     AppConfig(AppConfig&& other) noexcept;
 

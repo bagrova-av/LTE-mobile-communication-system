@@ -72,7 +72,7 @@ int main(int argc, char** argv)
     }
     const auto& [appConfig, initialLocation] = resultConfiguration.value();
 
-    AppState initialState{ initialLocation, false, Protocol::JSON };
+    AppState initialState{ initialLocation, false, Protocol::JSON, std::nullopt };
 
     App app(appConfig, initialState);
     CommandHandler menu(app);

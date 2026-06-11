@@ -31,6 +31,7 @@
 | `-i` | `--imsi` | imsi | string[15] |
 | `-l` | `--loc` | loc | array<float,3> (x, y, z) |
 | `-k` | `--config` | не задаётся | string |
+| `-m` | `--msisdn` | msisdn | string |
 | `-n` | `--nodes` | не задаётся | string |
 
 Порядок задания флагов в CLI не важен.

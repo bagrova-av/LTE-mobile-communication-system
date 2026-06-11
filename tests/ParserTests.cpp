@@ -42,6 +42,7 @@ TEST(ParserTest, BuildFinalConfig_Valid)
     params.port = "8080";
     params.imei = "490154203237518";
     params.imsi = "404685505601234";
+    params.msisdn = "89990001122";
     params.initialLocation = LocationPoint3D{134.001, 21.34, -3.000564};
 
     auto config = buildFinalConfig(params);
@@ -65,7 +66,10 @@ TEST(ParserTest, BuildFinalConfig_MissingParams)
     params.imsi = "404685505601234";
     EXPECT_FALSE(buildFinalConfig(params).has_value());
 
-    params.imsi = std::nullopt;
+    params.msisdn = "89990001122";
+    EXPECT_FALSE(buildFinalConfig(params).has_value());
+
+    params.msisdn = std::nullopt;
     params.initialLocation = LocationPoint3D{134.001, 21.34, -3.000564};
     EXPECT_FALSE(buildFinalConfig(params).has_value());
 }
@@ -77,6 +81,7 @@ TEST(ParserTest, BuildFinalConfig_InvalidNetworkAddress)
     params.port = "1025";
     params.imei = "490154203237518";
     params.imsi = "404685505601234";
+    params.msisdn = "89990001122";
     params.initialLocation = LocationPoint3D{1, 2, 3};
     EXPECT_FALSE(buildFinalConfig(params).has_value());
 
@@ -118,6 +123,7 @@ TEST(ParserTest, ParseCLI_Valid)
                                                     "--port", "7777",
                                                     "--imsi", "404685505601234",
                                                     "--imei", "490154203237518",
+                                                    "--msisdn", "89990001122",
                                                     "--loc", "0", "0.6", "-45.84",
                                                     "--nodes", "nodeA,nodeB" };
     auto argv = createArgv(args);
@@ -130,6 +136,7 @@ TEST(ParserTest, ParseCLI_Valid)
     EXPECT_EQ(params.value().port.value(), "7777");
     EXPECT_EQ(params.value().imsi.value(), "404685505601234");
     EXPECT_EQ(params.value().imei.value(), "490154203237518");
+    EXPECT_EQ(params.value().msisdn.value(), "89990001122");
     EXPECT_EQ(params.value().initialLocation.value(), point);
     EXPECT_EQ(params.value().nodes, "nodeA,nodeB");
 
@@ -138,6 +145,7 @@ TEST(ParserTest, ParseCLI_Valid)
                             "--port", "8080",
                             "--imsi", "504685505601234",
                             "--imei", "590154203237518",
+                            "--msisdn", "89990001133",
                             "--loc", "0.3", "-34.6", "-045.84",
                             "--nodes", "nodeC,nodeD" };
     argv = createArgv(args);
@@ -151,6 +159,7 @@ TEST(ParserTest, ParseCLI_Valid)
     EXPECT_EQ(params.value().port.value(), "8080");
     EXPECT_EQ(params.value().imsi.value(), "504685505601234");
     EXPECT_EQ(params.value().imei.value(), "590154203237518");
+    EXPECT_EQ(params.value().msisdn.value(), "89990001133");
     EXPECT_EQ(params.value().initialLocation.value(), point);
     EXPECT_EQ(params.value().nodes, "nodeC,nodeD");
 }

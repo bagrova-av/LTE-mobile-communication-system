@@ -51,6 +51,7 @@ void CommandHandler::process()
               << " IP Address : " << app.getIP() << '\n'
               << " Port       : " << app.getPort() << '\n'
               << " IMEI       : " << app.getIMEI() << '\n'
+              << " MSISDN     : " << app.getMSISDN() << '\n'
               << " Nodes      : " << app.getNodes();
 
     std::string commandStr;

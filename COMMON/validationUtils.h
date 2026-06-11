@@ -14,6 +14,8 @@ bool validateIMEI(const std::string& imei);
 
 bool validateIMSI(const std::string& imsi);
 
+bool validateMSISDN(const std::string& msisdn);
+
 bool validateServerConfig(const StartupParams& params);
 
 #endif
