@@ -9,10 +9,12 @@
 #include "../CORE/ServerSocket.h"
 #include "./entities/MobilityManagmentEntity.h"
 #include "SerializerInterface.h"
+#include "../../CORE/entitiesConfigs/EpcConfig.h"
 
 class ServerApp
 {
 private:
+    EpcConfig epcConfig;
     size_t MAX_ACTIVE_CLIENT_CONNECTIONS = 100;
     const uint16_t listeningPort;
     const LocationPoint3D location;
@@ -31,7 +33,7 @@ private:
     void sendErrorResponse(int clientFileDescriptor, Protocol protocol, std::string reason);
 
 public:
-    ServerApp(uint16_t port, const LocationPoint3D& location);
+    ServerApp(uint16_t port, const LocationPoint3D& location, const EpcConfig& epcConfig);
     
     void process();
 

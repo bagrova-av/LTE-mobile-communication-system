@@ -2,10 +2,10 @@
 #include "../../COMMON/constants.h"
 #include "../../COMMON/logging/Logger.h"
 
-MobilityManagmentEntity::MobilityManagmentEntity(MmeId id,
-                                                        std::vector<std::unique_ptr<BaseStation>> baseStations,
-                                                        std::unique_ptr<HlrEirInterface> hlrEir) :
-    id(id),
+MobilityManagmentEntity::MobilityManagmentEntity(MmeConfig config,
+                                                std::vector<std::unique_ptr<BaseStation>> baseStations,
+                                                std::unique_ptr<HlrEirInterface> hlrEir) :
+    config(config),
     baseStations(std::move(baseStations)),
     homeLocationAndEquipmentIdentityRegister(std::move(hlrEir))
 { }
@@ -77,8 +77,9 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
 
     if (subscriberRecord.value().identityData.imei != imei)
     {
-        Logger::warning(std::format("Error: the client with an IMSI ({}) and IMEI ({}) in the HLR(EIR) has a different IMEI({})", 
-                                imsi, imei, subscriberRecord.value().identityData.imei));
+        Logger::warning(std::format("Error: the client with an IMSI ({}) and IMEI ({}) "
+                                    "in the HLR(EIR) has a different IMEI({})", 
+                                    imsi, imei, subscriberRecord.value().identityData.imei));
         return std::nullopt;
     }
 
@@ -88,14 +89,21 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
         return std::nullopt;
     }
 
+    if (visitorLocationRegister.size() >= config.maxVlrRecords)
+    {
+        Logger::warning("MME: Attach rejected because VLR limit reached");
+        return std::nullopt;
+    }
     M_TMSI m_tmsi = generateTMSI();
     if (!targetBaseStation->registerClient(m_tmsi, clientFileDescriptor))
     {
-        Logger::warning("Error: failed to register the client at the base station with id " + std::to_string(baseStationId));
+        Logger::warning("Error: failed to register the client at the base station with id "
+                        + std::to_string(baseStationId));
         return std::nullopt;
     }
 
-    homeLocationAndEquipmentIdentityRegister->updateSubscriberSessionData(imsi, id, std::chrono::system_clock::now());
+    homeLocationAndEquipmentIdentityRegister->updateSubscriberSessionData(imsi, config.id,
+                                                                         std::chrono::system_clock::now());
     homeLocationAndEquipmentIdentityRegister->updateSubscriberStatus(imsi, SubscriberStatus::ACTIVE);
     
     visitorLocationRegister.emplace(m_tmsi, clientsData{imei, 

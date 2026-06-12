@@ -5,6 +5,7 @@
 #include "../../CORE/types.h"
 #include "BaseStation.h"
 #include "./hlrAndEir/JsonHlrEir.h"
+#include "../../CORE/entitiesConfigs/MmeConfig.h"
 
 struct clientsData
 {
@@ -16,7 +17,7 @@ struct clientsData
 class MobilityManagmentEntity
 {
 private:
-    MmeId id;
+    MmeConfig config;
     std::vector<std::unique_ptr<BaseStation>> baseStations;
     std::unordered_map<M_TMSI, clientsData> visitorLocationRegister;
     std::unique_ptr<HlrEirInterface> homeLocationAndEquipmentIdentityRegister;
@@ -31,7 +32,7 @@ private:
     bool detachClientWithoutMutex(M_TMSI m_tmsi); 
 
 public:
-    explicit MobilityManagmentEntity(MmeId id,
+    explicit MobilityManagmentEntity(MmeConfig config,
                                     std::vector<std::unique_ptr<BaseStation>> baseStations,
                                     std::unique_ptr<HlrEirInterface> hlrEir);
 

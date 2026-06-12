@@ -71,11 +71,15 @@ void App::handleAttachTask(uint8_t protocolHeader,
                                                   PacketType::RRC_SEARCH,
                                                   serializer.serialize(searchRequest)))
     {
+        clientSocket.disconnect();
         std::lock_guard<std::mutex> lock(stateMutex);
         Logger::error("App: failed to send RRC_Search request to the server");
         state.isActive = false;
         return;
     }
+
+    bool success = false;
+    std::string errorMessage = "Unknown error";
 
     auto rrcResponse = PacketTransporter::receiveDataPacketResponse(clientSocket);
     if (rrcResponse.has_value())
@@ -109,6 +113,7 @@ void App::handleAttachTask(uint8_t protocolHeader,
                                                                     attachResponse.value().data);
                         if (messageAccept.has_value())
                         {
+                            success = true;
                             std::lock_guard<std::mutex> lock(stateMutex);
                             state.m_tmsi = std::get<AttachAccept>(messageAccept.value()).m_tmsi;
                             responsesQueue.push("Attach successful. Your M_TMSI is "
@@ -117,35 +122,38 @@ void App::handleAttachTask(uint8_t protocolHeader,
                     }
                     else if (attachResponse.value().packetType == PacketType::ATTACH_REJECT)
                     {
-                        std::lock_guard<std::mutex> lock(stateMutex);
-                        responsesQueue.push("Attach rejected by server");
-                        state.isActive = false;
+                        errorMessage = "attach rejected by server";
                     }
                 }
                 else
                 {
-                    responsesQueue.push("Error: server connection lost during registration");
+                    errorMessage = "server connection lost during registration";
                 }
             }
         }
         else if (rrcResponse.value().packetType == PacketType::RRC_REJECT)
         {
-            std::lock_guard<std::mutex> lock(stateMutex);
-            responsesQueue.push("Network rejects the connection request: no coverage");
-            state.isActive = false;
+            errorMessage = "network rejects the connection request: no coverage";
         }
         else if (rrcResponse.value().packetType == PacketType::ERROR_MESSAGE)
         {
-            std::lock_guard<std::mutex> lock(stateMutex);
             auto message = serializer.deserialize(PacketType::ERROR_MESSAGE,
                                                   rrcResponse.value().data);
-            responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
-            state.isActive = false;
+            errorMessage = std::get<ErrorResponse>(message.value()).message;
         }
     }
     else
     {
-        responsesQueue.push("Error: server connection lost during Radio Resource Control request");
+        errorMessage = "server connection lost during Radio Resource Control request";
+    }
+
+    if (!success)
+    {
+        clientSocket.disconnect();
+        std::lock_guard<std::mutex> lock(stateMutex);
+        state.isActive = false;
+        state.m_tmsi = std::nullopt;
+        responsesQueue.push("Attach failed: " + errorMessage);
     }
 }
 
@@ -300,14 +308,7 @@ void App::networkThreadWorker()
                 //         responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
                 //     }
                 // }
-                if (clientSocket.isOpen())
-                {
-                    handleAttachTask(protocolHeader, *serializer);
-                }
-                else
-                {
-                    Logger::warning("Operation failed: no active connection to the network. Please, use 'ACTIVE true' first");
-                }
+                handleAttachTask(protocolHeader, *serializer);
                 break;
             }
             case TaskType::LOCATION :
@@ -344,7 +345,8 @@ void App::networkThreadWorker()
                 }
                 else
                 {
-                    Logger::warning("Operation failed: no active connection to the network. Please, use 'ACTIVE true' first");
+                    Logger::warning("Network operation failed: no active connection to the network. "
+                                    "Please, use 'ACTIVE true' first");
                 }
                 break;
             }
@@ -356,7 +358,8 @@ void App::networkThreadWorker()
                 }
                 else
                 {
-                    Logger::warning("Operation failed: no active connection to the network. Please, use 'ACTIVE true' first");
+                    Logger::warning("Network operation failed: no active connection to the network. "
+                                    "Please, use 'ACTIVE true' first");
                 }
                 break;
             }

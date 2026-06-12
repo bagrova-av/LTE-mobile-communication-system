@@ -222,7 +222,7 @@ std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& config
     return appConfig;
 }
 
-bool parseJSON(const std::string& configPath, StartupParams& appConfig)
+bool parseAppJSON(const std::string& configPath, StartupParams& appConfig)
 {
     std::ifstream configFile(configPath);
     if (!configFile.is_open())
@@ -363,88 +363,279 @@ int32_t parsePort(const std::string& portStr)
     return port.value();
 }
 
-std::optional<EpcConfig> parseEpcJSON(const std::string& configPath)
+bool parseEpcJSON(const std::string& configPath, EpcConfig& epcConfig)
 {
     std::ifstream configFile(configPath);
     if (!configFile.is_open())
     {
         Logger::error("Error: could not open evolved packet core config file: " + configPath);
-        return std::nullopt;
+        return false;
     }
 
     json data;
-    EpcConfig epcConfig;
     try
     {
         configFile >> data;
+
+        if (!data.contains("simtel_ttl") || !data["simtel_ttl"].is_number_unsigned())
+        {
+            return false;
+        }
         epcConfig.simtelTtl = data["simtel_ttl"].get<Seconds>();
         
+        if (!data.contains("hlrEir"))
+        {
+            return false;
+        }
         auto hlrEir = data["hlrEir"];
+
+        if (!hlrEir.contains("format"))
+        {
+            return false;
+        }
         epcConfig.hlrEir.format = hlrEir["format"].get<std::string>();
+
+        if (!hlrEir.contains("provider"))
+        {
+            return false;
+        }
         epcConfig.hlrEir.provider = hlrEir["provider"].get<std::string>();
+
+        if (!hlrEir.contains("path"))
+        {
+            return false;
+        }
         epcConfig.hlrEir.path = hlrEir["path"].get<std::string>();
 
+        if (!data.contains("nodes_file"))
+        {
+            return false;
+        }
         epcConfig.nodesConfigFile = data["nodes_file"].get<std::string>();
+
+        if (!data.contains("mme_config"))
+        {
+            return false;
+        }
         epcConfig.mmeConfigFile = data["mme_config"].get<std::string>();
     }
     catch(const std::exception& ex)
     {
         Logger::error(std::format("Error: Failed to process JSON file with  evolved packet core config.\nDetails: {}", 
                                     ex.what()));
-        return std::nullopt;
+        return false;
     }
 
     configFile.close();
-    return epcConfig;
+    return true;
 }
 
-std::optional<std::vector<BaseStationConfig>> parseBaseStationsJSON(const std::string& configPath)
+bool parseBaseStationsJSON(const std::string& configPath, std::vector<BaseStationConfig>& bsConfigs)
 {
     std::ifstream configFile(configPath);
     if (!configFile.is_open())
     {
         Logger::error("Error: could not open baseStations config file: " + configPath);
-        return std::nullopt;
+        return false;
     }
 
     json data;
-    std::vector<BaseStationConfig> baseStations;
     try
     {
         configFile >> data;
         if (!data.contains("baseStations") || !data["baseStations"].is_array())
         {
-            return std::nullopt;
+            return false;
         }
 
         const auto& items = data["baseStations"];
-        baseStations.reserve(items.size());
+        bsConfigs.reserve(items.size());
         for (const auto& item : items)
         {
+            if (!item.contains("id") || !item["id"].is_number_unsigned())
+            {
+                Logger::error("Validation error: base station ID must be an integer value");
+                return false;
+            }
             BaseStationId id = item["id"].get<BaseStationId>();
+
+            if (!item.contains("mmeId") || !item["mmeId"].is_number_unsigned())
+            {
+                Logger::error("Validation error: mobility management entity ID must be an integer value");
+                return false;
+            }
             MmeId mmeId = item["mmeId"].get<MmeId>();
-            std::vector<CoordinatesType> positionComponents = item["position"].get<std::vector<CoordinatesType>>();
+
+            if (!item.contains("position"))
+            {
+                return false;
+            }
+            std::optional<LocationPoint3D> position = parseLocation(item["position"].get<std::vector<CoordinatesType>>());
+            if (!position.has_value())
+            {
+                return false;
+            }
+
+            if (!item.contains("coverageRadius") || !item["coverageRadius"].is_number()
+                || item["coverageRadius"] < 0)
+            {
+                Logger::error("Validation error: coverage radius must be a positive number");
+                return false;
+            }
             CoordinatesType coverageRadius = item["coverageRadius"].get<CoordinatesType>();
+
+            if (!item.contains("maxSupportedConnections")
+                || !item["maxSupportedConnections"].is_number_unsigned())
+            {
+                Logger::error("Validation error: number with max supported connections must be an integer value");
+                return false;
+            }
             size_t maxSupportedConnections = item["maxSupportedConnections"].get<size_t>();
+
+            if (!item.contains("bufferBytesSizePerConnection")
+                || !item["bufferBytesSizePerConnection"].is_number_unsigned())
+            {
+                Logger::error("Validation error: number with buffer bytes size per connection must be an integer value");
+                return false;
+            }
             size_t bufferBytesSizePerConnection = item["bufferBytesSizePerConnection"].get<size_t>();
-            LocationPoint3D position;
-            position.updateFromVector(positionComponents);
-            baseStations.emplace_back(BaseStationConfig{id,
-                                                        mmeId,
-                                                        position,
-                                                        coverageRadius,
-                                                        maxSupportedConnections,
-                                                        bufferBytesSizePerConnection}
+
+            bsConfigs.emplace_back(BaseStationConfig{id,
+                                                    mmeId,
+                                                    position.value(),
+                                                    coverageRadius,
+                                                    maxSupportedConnections,
+                                                    bufferBytesSizePerConnection}
             );
         }
     }
     catch(const std::exception& ex)
     {
-        Logger::error(std::format("Error: Failed to process JSON file with baseStations config.\nDetails: {}", 
+        Logger::error(std::format("Error: Failed to process JSON file with baseStations config.\nDetails: {}",
                                     ex.what()));
-        return std::nullopt;
+        return false;
     }
 
     configFile.close();
-    return baseStations;
+    return true;
+}
+
+// bool parseHlrEirRecordsJSON(const std::string& configPath, std::vector<HlrEirRecord>& records)
+// {
+//     std::ifstream configFile(configPath);
+//     if (!configFile.is_open())
+//     {
+//         Logger::error("Error: could not open HLR(+EIR): " + configPath);
+//         return false;
+//     }
+
+//     json data;
+//     try
+//     {
+//         configFile >> data;
+//         for (const auto& item : data)
+//         {
+//             if (!item.contains("imsi"))
+//             {
+//                 return false;
+//             }
+//             std::string imsiTemp = item["imsi"].get<std::string>();
+//             if (!validateIMSI(imsiTemp))
+//             {
+//                 return false;
+//             }
+
+//             if (!item.contains("imei"))
+//             {
+//                 return false;
+//             }
+//             std::string imeiTemp = item["imei"].get<std::string>();
+//             if (!validateIMEI(imeiTemp))
+//             {
+//                 return false;
+//             }
+
+//             if (!item.contains("msisdn"))
+//             {
+//                 return false;
+//             }
+//             std::string msisdnTemp = item["msisdn"].get<std::string>();
+//             if (!validateMSISDN(msisdnTemp))
+//             {
+//                 return false;
+//             }
+
+//             if (!item.contains("status"))
+//             {
+//                 return false;
+//             }
+//             std::optional<SubscriberStatus> status = convertStringToStatus(item["status"].get<std::string>());
+//             if (!status.has_value())
+//             {
+//                 return false;
+//             }
+
+//             IdentitySubscriberData identityData{imsiTemp,
+//                                                 imeiTemp,
+//                                                 msisdnTemp,
+//                                                 status.value()};
+
+//             SessionSubscriberData sessionData;
+//             sessionData.lastActivityTime = std::nullopt;
+//             sessionData.currentMmeId = std::nullopt;
+
+//             records.emplace_back(HlrEirRecord{identityData, sessionData});
+//         }
+//     }
+//     catch(const std::exception& ex)
+//     {
+//         Logger::error(std::format("Error: Failed to process JSON file with HLR(+EIR).\nDetails: {}", 
+//                                     ex.what()));
+//         return false;
+//     }
+
+//     configFile.close();
+//     return true;
+// }
+
+bool parseMmeJSON(const std::string& configPath, std::vector<MmeConfig>& mmes)
+{
+    std::ifstream configFile(configPath);
+    if (!configFile.is_open())
+    {
+        Logger::error("Error: could not open MMEs config file: " + configPath);
+        return false;
+    }
+
+    json data;
+    try
+    {
+        configFile >> data;
+        for (const auto& item : data)
+        {
+            if (!item.contains("id") || !item["id"].is_number_unsigned())
+            {
+                Logger::error("Validation error: MME ID must be an integer value");
+                return false;
+            }
+
+            if (!item.contains("maximum_records_in_vlr")
+                || !item["maximum_records_in_vlr"].is_number_unsigned())
+            {
+                Logger::error("Validation error: number with maximum records in VLR must be an integer value");
+                return false;
+            }
+
+            mmes.emplace_back(item["id"].get<int>(), item["maximum_records_in_vlr"].get<int>());
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        Logger::error(std::format("Error: Failed to process JSON file with MMEs configs.\nDetails: {}",
+                                    ex.what()));
+        return false;
+    }
+
+    configFile.close();
+    return true;
 }

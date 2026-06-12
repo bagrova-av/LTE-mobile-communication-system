@@ -1,5 +1,6 @@
 #include "JsonHlrEir.h"
 #include "../../../COMMON/logging/Logger.h"
+#include "../../../COMMON/validationUtils.h"
 
 #include <fstream>
 #include <format>
@@ -20,27 +21,84 @@ bool JsonHlrEir::loadRecordsFromFile(const std::string& filePath)
     try
     {
         hlrEirFile >> data;
+    //     for (const auto& item : data)
+    //     {
+    //         IMSI imsi = item["imsi"].get<IMSI>();
+    //         IMEI imei = item["imei"].get<IMEI>();
+    //         MSISDN msisdn = item["msisdn"].get<MSISDN>();
+    //         std::string statusString = item["status"].get<std::string>();
+
+    //         std::optional<SubscriberStatus> status = convertStringToStatus(statusString);
+    //         if (!status.has_value())
+    //         {
+    //             Logger::error("Error: failed to process JSON file with HLR and EIR records. "
+    //                         "Subscriber status must be 'active', 'blocked', 'stolen' or 'inactive'");
+    //             return false;
+    //         }
+
+    //         IdentitySubscriberData identityData{imsi, imei, msisdn, status.value()};
+    //         SessionSubscriberData sessionData{std::nullopt, std::nullopt};
+    //         subscriberRecords.emplace(imsi, 
+    //                                   HlrEirRecord{std::move(identityData), std::move(sessionData)}
+    //         );
+            
+    //     }
+    // }
         for (const auto& item : data)
         {
-            IMSI imsi = item["imsi"].get<IMSI>();
-            IMEI imei = item["imei"].get<IMEI>();
-            MSISDN msisdn = item["msisdn"].get<MSISDN>();
-            std::string statusString = item["status"].get<std::string>();
-
-            std::optional<SubscriberStatus> status = convertStringToStatus(statusString);
-            if (!status.has_value())
+            if (!item.contains("imsi"))
             {
-                Logger::error("Error: failed to process JSON file with HLR and EIR records. "
-                            "Subscriber status must be 'active', 'blocked', 'stolen' or 'inactive'");
+                return false;
+            }
+            std::string imsiTemp = item["imsi"].get<std::string>();
+            if (!validateIMSI(imsiTemp))
+            {
                 return false;
             }
 
-            IdentitySubscriberData identityData{imsi, imei, msisdn, status.value()};
-            SessionSubscriberData sessionData{std::nullopt, std::nullopt};
-            subscriberRecords.emplace(imsi, 
-                                      HlrEirRecord{std::move(identityData), std::move(sessionData)}
-            );
-            
+            if (!item.contains("imei"))
+            {
+                return false;
+            }
+            std::string imeiTemp = item["imei"].get<std::string>();
+            if (!validateIMEI(imeiTemp))
+            {
+                return false;
+            }
+
+            if (!item.contains("msisdn"))
+            {
+                return false;
+            }
+            std::string msisdnTemp = item["msisdn"].get<std::string>();
+            if (!validateMSISDN(msisdnTemp))
+            {
+                return false;
+            }
+
+            if (!item.contains("status"))
+            {
+                return false;
+            }
+            std::optional<SubscriberStatus> status = convertStringToStatus(item["status"].get<std::string>());
+            if (!status.has_value())
+            {
+                Logger::error("Error: failed to process JSON file with HLR and EIR records. "
+                             "Subscriber status must be 'active', 'blocked', 'stolen' or 'inactive'");
+                return false;
+            }
+
+            IdentitySubscriberData identityData{imsiTemp,
+                                                imeiTemp,
+                                                msisdnTemp,
+                                                status.value()};
+
+            SessionSubscriberData sessionData;
+            sessionData.lastActivityTime = std::nullopt;
+            sessionData.currentMmeId = std::nullopt;
+
+            subscriberRecords.emplace(imsiTemp,
+                                      HlrEirRecord{std::move(identityData), std::move(sessionData)});
         }
     }
     catch (const json::exception& ex)

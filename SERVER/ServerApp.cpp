@@ -9,18 +9,19 @@
 #include <thread>
 #include <format>
 
-ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location) :
+ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location, const EpcConfig& epcConfig) :
     listeningPort(port),
     location(location),
+    epcConfig(epcConfig),
     serverSocket()
 {
     std::vector<std::unique_ptr<BaseStation>> baseStations;
-    auto baseStationsConfigs = parseBaseStationsJSON("../data/nodes.json");
-    if (!baseStationsConfigs.has_value())
+    std::vector<BaseStationConfig> baseStationsConfigs;
+    if (!parseBaseStationsJSON(epcConfig.nodesConfigFile, baseStationsConfigs))
     {
         throw std::runtime_error("ServerApp: failed to load base stations from their config file");
     }
-    for (const auto& baseStationConfig : baseStationsConfigs.value())
+    for (const auto& baseStationConfig : baseStationsConfigs)
     {
         baseStations.emplace_back(std::make_unique<BaseStation>(baseStationConfig));
         Logger::info(std::format("BaseStation loaded: ID = {}, Position = [{};{};{}], Radius = {}", 
@@ -29,13 +30,23 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location) :
                                 baseStationConfig.coverageRadius));
     }
 
+    if (toLowerCase(epcConfig.hlrEir.format) != "json")
+    {
+        throw std::runtime_error("ServerApp: an unsupported format has been introduced for HLR and EIR");
+    }
     auto hlrEir = std::make_unique<JsonHlrEir>();
-    if (!hlrEir->loadRecordsFromFile("../data/hlrEir.json"))
+    if (!hlrEir->loadRecordsFromFile(epcConfig.hlrEir.path))
     {
         throw std::runtime_error("ServerApp: failed to load HLR(EIR)");
     }
 
-    mme = std::make_unique<MobilityManagmentEntity>(1, //TODO
+    std::vector<MmeConfig> mobilityManagmentEntitiesConfigs;
+    if (!parseMmeJSON(epcConfig.mmeConfigFile, mobilityManagmentEntitiesConfigs))
+    {
+        throw std::runtime_error("ServerApp: failed to load mobility management entities from their config file");
+    }
+
+    mme = std::make_unique<MobilityManagmentEntity>(mobilityManagmentEntitiesConfigs[0],
                                                     std::move(baseStations),
                                                     std::move(hlrEir));
 

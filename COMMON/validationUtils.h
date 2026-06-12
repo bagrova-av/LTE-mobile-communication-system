@@ -16,6 +16,6 @@ bool validateIMSI(const std::string& imsi);
 
 bool validateMSISDN(const std::string& msisdn);
 
-bool validateServerConfig(const StartupParams& params);
+bool validateServerConfig(const StartupParams& params, const std::string& configFile);
 
 #endif

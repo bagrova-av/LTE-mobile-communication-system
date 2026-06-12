@@ -6,7 +6,7 @@
 #include <mutex>
 
 #include "ClientContext.h"
-#include "../../CORE/BaseStationConfig.h"
+#include "../../CORE/entitiesConfigs/BaseStationConfig.h"
 
 class BaseStation
 {

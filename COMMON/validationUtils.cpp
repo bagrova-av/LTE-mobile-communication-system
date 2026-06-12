@@ -112,7 +112,7 @@ bool validateMSISDN(const std::string& msisdn)
     return true;
 }
 
-bool validateServerConfig(const StartupParams& params)
+bool validateServerConfig(const StartupParams& params, const std::string& configFile)
 {
     if (!params.port.has_value())
     {
@@ -122,6 +122,12 @@ bool validateServerConfig(const StartupParams& params)
     if (!params.initialLocation.has_value())
     {
         Logger::error("To initialize the server, the position must be set via the CLI flags when launching the application");
+        return false;
+    }
+    if (configFile.empty())
+    {
+        Logger::error("To initialize the server, evolved packet core config (EPC) file must be set "
+                      "via the CLI flags when launching the application");
         return false;
     }
     return true;

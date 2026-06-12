@@ -84,17 +84,19 @@ std::optional<ReceivedDataPacket> PacketTransporter::receiveDataPacketRequest(in
     std::optional<BytesBuffer> packetType = ServerSocket::receiveAllData(clientFileDescriptor, 1);
     if (!packetType.has_value())
     {
+        Logger::error("ServerSocket: client disconnected unexpectedly after protocol header");
         return std::nullopt;
     }
     if (packetType.value()[0] >= static_cast<uint8_t>(PacketType::UNKNOWN))
     {
-        Logger::warning("ClientSocket: received unknown packet type");
+        Logger::warning("ServerSocket: received unknown packet type");
         return std::nullopt;
     }
 
     std::optional<BytesBuffer> bufferForSize = ServerSocket::receiveAllData(clientFileDescriptor, sizeof(uint32_t));
     if (!bufferForSize.has_value())
     {
+        Logger::warning("ServerSocket: the client disconnected before data transfer completed");
         return std::nullopt;
     }
     uint32_t bufferSizeNetworkFormat;
@@ -104,6 +106,7 @@ std::optional<ReceivedDataPacket> PacketTransporter::receiveDataPacketRequest(in
     std::optional<BytesBuffer> data = ServerSocket::receiveAllData(clientFileDescriptor, bufferSizeHostFormat);
     if (!data.has_value())
     {
+        Logger::warning("ServerSocket: the client disconnected before data transfer completed");
         return std::nullopt;
     }
 
