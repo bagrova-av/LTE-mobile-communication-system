@@ -191,29 +191,67 @@ void App::handleLocationTask(uint8_t protocolHeader,
         Logger::error("Failed to serialize location for network transfer");
         return;
     }
+
     if (!PacketTransporter::sendDataPacketRequest(clientSocket,
                                                   protocolHeader,
                                                   PacketType::LOCATION,
                                                   serializedLocation.value()))
     {
         Logger::error("CommandMove: failed to send data to the server");
+        responsesQueue.push("Network error: failed to send location");
         return;
     }
     Logger::info("The data with the current position of the client has been sent to the server successfully");
 
-    auto distanceResponce = PacketTransporter::receiveDataPacketResponse(clientSocket);
-    if (distanceResponce.has_value() && distanceResponce.value().packetType == PacketType::DISTANCE)
+    auto distanceResponse = PacketTransporter::receiveDataPacketResponse(clientSocket);
+    if (!distanceResponse.has_value())
     {
-        auto message = serializer.deserialize(PacketType::DISTANCE, distanceResponce.value().data);
+        Logger::error("Server connection lost while waiting for distance");
+        responsesQueue.push("Error: server connection lost");
+
+        clientSocket.disconnect();
+        std::lock_guard<std::mutex> lock(stateMutex);
+        state.isActive = false;
+        return;
+    }
+
+    if (distanceResponse.value().packetType == PacketType::DISTANCE)
+    {
+        auto message = serializer.deserialize(PacketType::DISTANCE, distanceResponse.value().data);
         if (message.has_value())
         {
             CoordinatesType distance = std::get<DistanceResponse>(message.value()).distance;
-            std::string response = "Distance from " + convertLocationToString (location)
+            std::string response = "Distance from " + convertLocationToString(location)
                                     + " to the server: " + std::to_string(distance);
             responsesQueue.push(std::move(response));
             Logger::info("Received distance from the server. The distance from the client to the server is " +
                         std::to_string(distance));
         }
+        else
+        {
+            Logger::error("Failed to deserialize distance response");
+            responsesQueue.push("Received deformed distance data from server");
+        }
+    }
+    else if (distanceResponse.value().packetType == PacketType::ERROR_MESSAGE)
+    {
+        auto message = serializer.deserialize(PacketType::ERROR_MESSAGE, distanceResponse.value().data);
+        if (message.has_value())
+        {
+            std::string errorText = std::get<ErrorResponse>(message.value()).message;
+            responsesQueue.push("Server error: " + errorText);
+            Logger::warning("Server returned error: " + errorText);
+        }
+        else
+        {
+            responsesQueue.push("Server returned error");
+            Logger::warning("Server returned error");
+        }
+    }
+    else
+    {
+        Logger::warning("Received unexpected packet type during location update");
+        responsesQueue.push("Error: unexpected response from server");
     }
 }
 
