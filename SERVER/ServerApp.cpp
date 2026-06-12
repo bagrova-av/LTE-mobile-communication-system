@@ -213,7 +213,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
                                 + " is " + std::to_string(distance));
 
-                    PacketTransporter::sendDistanceResponse(clientFileDescriptor, receivedProtocol, distance);
+                    sendDistanceResponce(clientFileDescriptor, receivedProtocol, distance);
                 }
                 else
                 {
@@ -327,6 +327,24 @@ void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, st
     PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
                                               static_cast<uint8_t>(protocol),
                                               PacketType::ATTACH_REJECT,
+                                              data);
+}
+
+void ServerApp::sendDistanceResponce(int clientFileDescriptor, Protocol protocol, CoordinatesType distance)
+{
+    DistanceResponse distanceResponse{distance};
+    auto serializer = SerializerFactory::createSerializer(protocol);
+    if (!serializer)
+    {
+        Logger::warning("Received unknown protocol header from client");
+        ServerSocket::closeClientConnection(clientFileDescriptor);
+        return;
+    }
+
+    BytesBuffer data = serializer->serialize(distanceResponse);
+    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
+                                              static_cast<uint8_t>(protocol),
+                                              PacketType::DISTANCE,
                                               data);
 }
 

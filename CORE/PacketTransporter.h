@@ -44,9 +44,6 @@ public:
                                        uint8_t protocolHeader,
                                        PacketType packetType,
                                        const BytesBuffer& data);
-    
-    static std::optional<CoordinatesType> receiveDistanceResponse(const ClientSocket& clientSocket);
-    static bool sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance);
 };
 
 #endif

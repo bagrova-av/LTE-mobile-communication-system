@@ -52,6 +52,10 @@ BytesBuffer JsonSerializer::serialize(const NetworkMessage& message) const
                         dataJSON["y"] = arg.y;
                         dataJSON["z"] = arg.z;
                     }
+                    else if constexpr (std::is_same_v<T, DistanceResponse>)
+                    {
+                        dataJSON["distance"] = arg.distance;
+                    }
                     else if constexpr (std::is_same_v<T, ErrorResponse>)
                     {
                         dataJSON["message"] = arg.message;
@@ -106,6 +110,10 @@ std::optional<NetworkMessage> JsonSerializer::deserialize(PacketType packetType,
             case PacketType::DETACH_REQUEST :
             {
                 return DetachRequest{ dataJSON["m_tmsi"] };
+            }
+            case PacketType::DISTANCE :
+            {
+                return DistanceResponse{ dataJSON["distance"] };
             }
             case PacketType::ERROR_MESSAGE :
             {

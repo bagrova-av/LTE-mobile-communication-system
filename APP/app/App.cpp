@@ -201,16 +201,20 @@ void App::handleLocationTask(uint8_t protocolHeader,
     }
     Logger::info("The data with the current position of the client has been sent to the server successfully");
 
-    std::optional<CoordinatesType> distance = PacketTransporter::receiveDistanceResponse(clientSocket);
-    if (!distance.has_value())
+    auto distanceResponce = PacketTransporter::receiveDataPacketResponse(clientSocket);
+    if (distanceResponce.has_value() && distanceResponce.value().packetType == PacketType::DISTANCE)
     {
-        return;
+        auto message = serializer.deserialize(PacketType::DISTANCE, distanceResponce.value().data);
+        if (message.has_value())
+        {
+            CoordinatesType distance = std::get<DistanceResponse>(message.value()).distance;
+            std::string response = "Distance from " + convertLocationToString (location)
+                                    + " to the server: " + std::to_string(distance);
+            responsesQueue.push(std::move(response));
+            Logger::info("Received distance from the server. The distance from the client to the server is " +
+                        std::to_string(distance));
+        }
     }
-    std::string response = "Distance from " + convertLocationToString (location)
-                            + " to the server: " + std::to_string(distance.value());
-    responsesQueue.push(std::move(response));
-    Logger::info("Received distance from the server. The distance from the client to the server is " +
-                std::to_string(distance.value()));
 }
 
 void App::networkThreadWorker()

@@ -30,6 +30,7 @@ private:
     void sendRrcReject(int clientFileDescriptor, Protocol protocol, std::string reason);
     void sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_TMSI m_tmsi);
     void sendAttachReject(int clientFileDescriptor, Protocol protocol, std::string reason);
+    void sendDistanceResponce(int clientFileDescriptor, Protocol protocol, CoordinatesType distance);
     void sendErrorResponse(int clientFileDescriptor, Protocol protocol, std::string reason);
 
 public:

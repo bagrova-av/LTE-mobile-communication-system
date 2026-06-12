@@ -47,6 +47,10 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                     {
                         totalSize = sizeof(CoordinatesType) * LocationPoint3D::COUNT_COMPONENTS_IN_POINT;
                     }
+                    else if constexpr (std::is_same_v<T, DistanceResponse>)
+                    {
+                        totalSize = sizeof(CoordinatesType);
+                    }
                     else if constexpr (std::is_same_v<T, ErrorResponse>)
                     {
                         totalSize = sizeof(uint32_t) + arg.message.length();
@@ -98,6 +102,10 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                         writeValue(dataNetworkFormat, arg.x, offset);
                         writeValue(dataNetworkFormat, arg.y, offset);
                         writeValue(dataNetworkFormat, arg.z, offset);
+                    }
+                    else if constexpr (std::is_same_v<T, DistanceResponse>)
+                    {
+                        writeValue(dataNetworkFormat, arg.distance, offset);
                     }
                     else if constexpr (std::is_same_v<T, ErrorResponse>)
                     {
@@ -239,6 +247,16 @@ std::optional<NetworkMessage> BinarySerializer::deserialize(PacketType packetTyp
             }
 
             return LocationPoint3D{x.value(), y.value(), z.value()};
+        }
+        case PacketType::DISTANCE:
+        {
+            std::optional<CoordinatesType> distance = readValue<CoordinatesType>(dataNetworkFormat, offset);
+            if (!distance.has_value())
+            {
+                return std::nullopt;
+            }
+
+            return DistanceResponse{ distance.value() };
         }
         case PacketType::ERROR_MESSAGE :
         {

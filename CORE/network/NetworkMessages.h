@@ -50,6 +50,11 @@ struct ErrorResponse
     std::string message;
 };
 
+struct DistanceResponse
+{
+    CoordinatesType distance;
+};
+
 using NetworkMessage = std::variant<AttachRequest,
                                     SearchRequest,
                                     AttachAccept,
@@ -58,6 +63,7 @@ using NetworkMessage = std::variant<AttachRequest,
                                     RrcResponse,
                                     RrcReject,
                                     LocationPoint3D,
+                                    DistanceResponse,
                                     ErrorResponse>;
 
 #endif
