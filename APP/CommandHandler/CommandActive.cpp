@@ -18,7 +18,7 @@ bool CommandActive::processValue(const std::string& value)
     {
         return false;
     }
-    
+
     if (newState == app.getStatus())
     {
         Logger::info("Application status is already " + stateStr + ". No changes made");

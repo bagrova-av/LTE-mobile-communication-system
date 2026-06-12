@@ -28,6 +28,7 @@ set(CORE_SOURCE_LIST
     CORE/network/JsonSerializer.cpp
     CORE/entitiesConfigs/SubscriberRecord.cpp
     COMMON/utils.cpp
+    COMMON/networkUtils.cpp
     COMMON/parserUtils.cpp
     COMMON/validationUtils.cpp
     COMMON/logging/FileLogger.cpp

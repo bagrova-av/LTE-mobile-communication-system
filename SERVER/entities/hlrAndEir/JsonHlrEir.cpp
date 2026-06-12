@@ -21,29 +21,6 @@ bool JsonHlrEir::loadRecordsFromFile(const std::string& filePath)
     try
     {
         hlrEirFile >> data;
-    //     for (const auto& item : data)
-    //     {
-    //         IMSI imsi = item["imsi"].get<IMSI>();
-    //         IMEI imei = item["imei"].get<IMEI>();
-    //         MSISDN msisdn = item["msisdn"].get<MSISDN>();
-    //         std::string statusString = item["status"].get<std::string>();
-
-    //         std::optional<SubscriberStatus> status = convertStringToStatus(statusString);
-    //         if (!status.has_value())
-    //         {
-    //             Logger::error("Error: failed to process JSON file with HLR and EIR records. "
-    //                         "Subscriber status must be 'active', 'blocked', 'stolen' or 'inactive'");
-    //             return false;
-    //         }
-
-    //         IdentitySubscriberData identityData{imsi, imei, msisdn, status.value()};
-    //         SessionSubscriberData sessionData{std::nullopt, std::nullopt};
-    //         subscriberRecords.emplace(imsi, 
-    //                                   HlrEirRecord{std::move(identityData), std::move(sessionData)}
-    //         );
-            
-    //     }
-    // }
         for (const auto& item : data)
         {
             if (!item.contains("imsi"))

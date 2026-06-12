@@ -3,9 +3,11 @@
 #define NETWORK_UTILS_H
 
 #include <arpa/inet.h>
-#include <concepts>
-#include <cstdint>
 #include <bit>
+#include <optional>
+#include <cstring>
+
+#include "../CORE/types.h"
 
 template<typename T>
 concept NetworkSerializable = std::same_as<T, uint16_t> ||
@@ -101,5 +103,34 @@ T convertNetworkToHostOrder(NetworkBitsType_t<T> networkValue)
         static_assert(alwaysFalse<NetworkType>, "Unsupported type size for convert network to host format");
     }
 }
+
+template<typename T>
+void writeValue(BytesBuffer& buffer, T value, size_t& offset)
+{
+    auto networkValue = convertHostToNetworkOrder(value);
+    size_t networkValueSize = sizeof(networkValue);
+    std::memcpy(buffer.data() + offset, &networkValue, networkValueSize);
+    offset += networkValueSize;
+}
+
+void writeString(BytesBuffer& buffer, const std::string& str, size_t& offset);
+
+template<NetworkSerializable T>
+std::optional<T> readValue(const BytesBuffer& buffer, size_t& offset)
+{
+    NetworkBitsType_t<T> networkValue;
+    size_t networkValueSize = sizeof(networkValue);
+    if (offset + networkValueSize > buffer.size())
+    {
+        return std::nullopt;
+    }
+
+    std::memcpy(&networkValue, buffer.data() + offset, networkValueSize);
+    offset += networkValueSize;
+
+    return convertNetworkToHostOrder<T>(networkValue);
+}
+
+std::optional<std::string> readString(const BytesBuffer& buffer, size_t& offset);
 
 #endif

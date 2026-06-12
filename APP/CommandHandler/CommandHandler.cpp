@@ -95,7 +95,7 @@ void CommandHandler::process()
             Logger::warning("Error: you entered invalid command '" + commandName + "'");
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(90));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));

@@ -2,7 +2,7 @@
 #ifndef BASE_STATION_CONFIG_H
 #define BASE_STATION_CONFIG_H
 
-#include "types.h"
+#include "../types.h"
 
 struct BaseStationConfig
 {
