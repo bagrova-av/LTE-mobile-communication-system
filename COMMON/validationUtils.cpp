@@ -29,9 +29,9 @@ bool validatePort(int32_t port)
     if (port < MIN_ALLOWED_PORT_NUMBER || port > MAX_ALLOWED_PORT_NUMBER)
     {
         Logger::error(std::format("Validation error: the port value cannot be {}. "
-                                    "The port value must be an integer value between 1024 and 65535 " 
+                                    "The port value must be an integer value between {} and {} " 
                                     "(in the range of registered and dynamic ports according to IANA)", 
-                                    port));
+                                    port, MIN_ALLOWED_PORT_NUMBER, MAX_ALLOWED_PORT_NUMBER));
         return false;
     }
     return true;
@@ -39,11 +39,11 @@ bool validatePort(int32_t port)
 
 bool validateIMEI(const std::string& imei)
 {
-    if (imei.length() != MAX_LENGTH_OF_IMSI_AND_IMEI)
+    if (imei.length() != MAX_LENGTH_OF_IMSI_IMEI_MSISDN)
     {
         Logger::error(std::format("Validation error: the entered IMEI has a length of {}. "
-                                    "It must contain exactly 15 characters", 
-                                    imei.length()));
+                                    "It must contain exactly {} characters", 
+                                    imei.length(), MAX_LENGTH_OF_IMSI_IMEI_MSISDN));
         return false;
     }
     
@@ -60,18 +60,18 @@ bool validateIMEI(const std::string& imei)
 
 bool validateIMSI(const std::string& imsi)
 {
-    if (imsi.length() > MAX_LENGTH_OF_IMSI_AND_IMEI)
+    if (imsi.length() > MAX_LENGTH_OF_IMSI_IMEI_MSISDN)
     {
         Logger::error(std::format("Validation error: the entered IMSI has a length of {}. "
-                                    "It must contain no more than 15 characters",
-                                    imsi.length()));
+                                    "It must contain no more than {} characters",
+                                    imsi.length(), MAX_LENGTH_OF_IMSI_IMEI_MSISDN));
         return false;
     }
     else if (imsi.length() < MIN_LENGTH_OF_IMSI)
     {
         Logger::error(std::format("Validation error: the entered IMSI has a length of {}. "
-                                    "It must contain at least 6 characters", 
-                                    imsi.length()));
+                                    "It must contain at least {} characters", 
+                                    imsi.length(), MIN_LENGTH_OF_IMSI));
         return false;
     }
     for (char c : imsi)
@@ -85,7 +85,34 @@ bool validateIMSI(const std::string& imsi)
     return true;
 }
 
-bool validateServerConfig(const StartupParams& params)
+bool validateMSISDN(const std::string& msisdn)
+{
+    if (msisdn.length() > MAX_LENGTH_OF_IMSI_IMEI_MSISDN)
+    {
+        Logger::error(std::format("Validation error: the entered MSISDN has a length of {}. "
+                                    "It must contain no more than {} characters",
+                                    msisdn.length(), MAX_LENGTH_OF_IMSI_IMEI_MSISDN));
+        return false;
+    }
+    else if (msisdn.length() < MIN_LENGTH_OF_MSISDN)
+    {
+        Logger::error(std::format("Validation error: the entered MSISDN has a length of {}. "
+                                    "It must contain at least {} characters",
+                                    msisdn.length(), MIN_LENGTH_OF_MSISDN));
+        return false;
+    }
+    for (char c : msisdn)
+    {
+        if (!std::isdigit(static_cast<unsigned char>(c)))
+        {
+            Logger::error("Validation error: MSISDN must contain only digits");
+            return false;
+        }
+    }
+    return true;
+}
+
+bool validateServerConfig(const StartupParams& params, const std::string& configFile)
 {
     if (!params.port.has_value())
     {
@@ -95,6 +122,12 @@ bool validateServerConfig(const StartupParams& params)
     if (!params.initialLocation.has_value())
     {
         Logger::error("To initialize the server, the position must be set via the CLI flags when launching the application");
+        return false;
+    }
+    if (configFile.empty())
+    {
+        Logger::error("To initialize the server, evolved packet core config (EPC) file must be set "
+                      "via the CLI flags when launching the application");
         return false;
     }
     return true;

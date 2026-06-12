@@ -7,6 +7,7 @@ StartupParams::StartupParams(const StartupParams& other) :
     port(other.port),
     imsi(other.imsi),
     imei(other.imei),
+    msisdn(other.msisdn),
     initialLocation(other.initialLocation),
     nodes(other.nodes)
 {
@@ -18,6 +19,7 @@ StartupParams::StartupParams(StartupParams&& other) noexcept :
     port(std::move(other.port)),
     imsi(std::move(other.imsi)),
     imei(std::move(other.imei)),
+    msisdn(std::move(other.msisdn)),
     initialLocation(std::move(other.initialLocation)),
     nodes(std::move(other.nodes))
 {
@@ -33,6 +35,7 @@ StartupParams& StartupParams::operator=(const StartupParams& other)
         port = other.port;
         imsi = other.imsi;
         imei = other.imei;
+        msisdn = other.msisdn;
         initialLocation = other.initialLocation;
         nodes = other.nodes;
     }
@@ -48,6 +51,7 @@ StartupParams& StartupParams::operator=(StartupParams&& other) noexcept
         port = std::move(other.port);
         imsi = std::move(other.imsi);
         imei = std::move(other.imei);
+        msisdn = std::move(other.msisdn);
         initialLocation = std::move(other.initialLocation);
         nodes = std::move(other.nodes);
     }

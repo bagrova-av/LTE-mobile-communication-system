@@ -1,0 +1,11 @@
+{
+  "simtel_ttl": 120,
+  "hlrEir":
+  {
+    "format": "JSON",
+    "provider": "file",
+    "path": "../data/hlrEir.json"
+  },
+  "nodes_file": "../data/nodes.json",
+  "mme_config": "../data/mme.json"
+}

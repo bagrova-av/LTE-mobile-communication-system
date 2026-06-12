@@ -23,10 +23,12 @@ set(CORE_SOURCE_LIST
     CORE/NetworkAddress.cpp
     CORE/ClientSocket.cpp
     CORE/ServerSocket.cpp
-    CORE/AppProtocol.cpp
+    CORE/PacketTransporter.cpp
     CORE/network/BinarySerializer.cpp
     CORE/network/JsonSerializer.cpp
+    CORE/entitiesConfigs/SubscriberRecord.cpp
     COMMON/utils.cpp
+    COMMON/networkUtils.cpp
     COMMON/parserUtils.cpp
     COMMON/validationUtils.cpp
     COMMON/logging/FileLogger.cpp
@@ -71,6 +73,10 @@ target_link_libraries(${PROJECT_NAME}Client PRIVATE ${PROJECT_NAME}ClientLib)
 add_executable(${PROJECT_NAME}Server
     SERVER/mainServer.cpp
     SERVER/ServerApp.cpp
+    #SERVER/entities/hlrAndEir/HlrEirInterface.cpp
+    SERVER/entities/hlrAndEir/JsonHlrEir.cpp
+    SERVER/entities/BaseStation.cpp
+    SERVER/entities/MobilityManagmentEntity.cpp
 )
 target_link_libraries(${PROJECT_NAME}Server PRIVATE ${PROJECT_NAME}Core)
 

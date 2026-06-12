@@ -2,8 +2,8 @@
 
 ## Описание проекта
 Данный проект представляет собой консольное многопоточное клиент-серверное приложение, состоящее из двух исполняемых файлов:
-- TelecomAppClient
-- TelecomAppServer
+- `TelecomAppClient` - модель пользовательского оборудования (UE, User Equipment)
+- `TelecomAppServer` - модель серверной части сети LTE (SimTel), включающей MME, набор базовых станций (eNode-B) и подсистему HLR(+EIR) и VLR
 
 Приложение поддерживает:
 - инициализацию через параметры командной строки и JSON-конфигурацию
@@ -11,8 +11,15 @@
 - интерактивное текстовое меню на английском языке
 - изменение внутреннего состояния клиентского устройства через команды пользователя
 - вычисление сервером расстояния от его позиции до заданной
-- клиент-серверный обмен на сокетах
-- логирование работы клиента и сервера
+- клиент-серверный обмен по TCP-сокетам
+- поддержка бинарного и JSON-протоколов передачи данных
+- многопоточная обработка подключений
+- имитация процедуры регистрации UE в сети LTE
+- проверка абонентов через HLR(+EIR)
+- назначение временного идентификатора M-TMSI
+- ведение временного регистра VLR
+- привязка зарегистрированных абонентов к обслуживающей базовой станции
+- логирование работы всех компонентов системы
 
 ## Основной функционал приложения-клиента
 
@@ -31,6 +38,7 @@
 | `-i` | `--imsi` | imsi | string[15] |
 | `-l` | `--loc` | loc | array<float,3> (x, y, z) |
 | `-k` | `--config` | не задаётся | string |
+| `-m` | `--msisdn` | msisdn | string |
 | `-n` | `--nodes` | не задаётся | string |
 
 Порядок задания флагов в CLI не важен.
@@ -51,6 +59,7 @@
 - порт
 - IMEI (International Mobile Equipment Identity)
 - IMSI (International Mobile Subscriber Identity)
+- MSISDN (Mobile Subscriber Integrated Services Digital Number)
 - текущую позицию (координаты в 3х-мерном пространстве)
 - состояние приложения (active / inactive)
 - формат протокола передачи данных (binary / JSON)
@@ -95,8 +104,9 @@
 Сервер инициализируется через флаги из CLI: 
 - портом
 - позицией
+- файлом с общей конфигурацией имитации оборудования (`epc.json`)
 
-Флаги имеют такой же формат, как и у приложения-клиента, т.е. `-p`/`--port` и `-l`/`--loc`.
+Флаги имеют такой же формат, как и у приложения-клиента, т.е. `-p`/`--port`, `-l`/`--loc` и `-k`/`--config`.
 
 Приложение-сервер работает в многопоточном режиме (2 потока):
 1. **Главный поток:** принимает пользовательский ввод через консоль в виде вектора позиции и вычисляет расстояние между своей позицией и заданной, результат выводится в консоль;
@@ -119,12 +129,31 @@
 Во время работы приложения ошибки валидации команд пользователя не приводят к завершению программы, а фиксируются в логах как предупреждения (WARNING).
 
 ## Архитектура проекта
+
+### Архитектура LTE-модели:
+
+```mermaid
+graph TD
+    UE[UE]
+    BS[eNode-B]
+    MME[MME]
+    HLR[HLR/EIR]
+    VLR[VLR]
+
+    UE --> BS
+    BS --> MME
+    MME --> HLR
+    MME --> VLR
+```
+
+
 ### Структура проекта:
 ```bash
 ├── APP
 │   ├── app
 │   │   ├── App.h | .cpp 
 │   │   ├── AppParams.h | .cpp
+│   │   ├── NetworkTask.h
 │   │   └── StartupParams.h | .cpp
 │   ├── CommandHandler
 │   │   ├── CommandActive.h | .cpp
@@ -142,24 +171,47 @@
 │   │   └── LoggerInterface.h
 │   ├── constants.h
 │   ├── ThreadSafeQueue.h
-│   ├── networkUtils.h
+│   ├── networkUtils.h | .cpp
 │   ├── parserUtils.h | .cpp
 │   ├── utils.h | .cpp
 │   └── validationUtils.h | .cpp
 ├── CORE
-│   ├── AppProtocol.h | .cpp
 │   ├── ClientSocket.h | .cpp
+│   ├── entitiesConfigs
+│   │   ├── BaseStationConfig.h
+│   │   ├── EpcConfig.h
+│   │   ├── MmeConfig.h
+│   │   └── SubscriberRecord.h | .cpp
 │   ├── network
 │   │   ├── BinarySerializer.h | .cpp
 │   │   ├── JsonSerializer.h | .cpp
+│   │   ├── NetworkMessages.h
+│   │   ├── SerializerFactory.h
 │   │   └── SerializerInterface.h
 │   ├── NetworkAddress.h | .cpp
+│   ├── PacketTransporter.h | .cpp
 │   ├── ServerSocket.h | .cpp
 │   └── types.h | .cpp
 ├── data
 │   ├── config([1-9]|10).json    # config1.json,..., config10.json
-│   └── config.json
+│   ├── config.json
+│   ├── epc.json
+│   ├── hlrEir.json
+│   ├── mme.json
+│   ├── nodes.json
+│   └── ue1.json
 ├── SERVER
+│   ├── entities
+│   │   ├── BaseStation.cpp
+│   │   ├── BaseStation.h
+│   │   ├── ClientContext.h
+│   │   ├── hlrAndEir
+│   │   │   ├── HlrEirInterface.cpp
+│   │   │   ├── HlrEirInterface.h
+│   │   │   ├── JsonHlrEir.cpp
+│   │   │   └── JsonHlrEir.h
+│   │   ├── MobilityManagmentEntity.cpp
+│   │   └── MobilityManagmentEntity.h
 │   ├── mainServer.cpp
 │   └── ServerApp.h | .cpp
 ├── runClients.sh
@@ -179,12 +231,19 @@
 ```
 ### Основные компоненты:
 - **`App`** – приложение-клиент, управляющее состоянием устройства и обработкой пользовательских команд
-- **`StartupParams`** – объект передачи данных
+- **`StartupParams`** – объект для передачи данных при запуске клиента
 - **`AppConfig`** – объект, хранящий конфигурацию (неизменяемые данные) приложения
 - **`AppState`** – объект, хранящий состояние (изменяемые данные) приложения
 - **`CommandHandler`** – обработка пользовательских команд
 - **`ServerApp`** – приложение-сервер
 - **`NetworkAddress`** – класс сетевого адреса
+- **`BaseStationConfig`** – объект, хранящий конфигурацию базовой станции
+- **`EpcConfig`** – объект, хранящий общую конфигурацию имитации оборудования 
+- **`MmeConfig`** – объект, хранящий конфигурацию узла управления мобильностью сети сотовой связи
+- **`SubscriberRecord`** – объект, хранящий данные из Home Location Register (БД оператора связи с информацией об абоненте мобильной сети) и Equipment Identity Register (регистр абонентского оборудования) об абоненте
+- **`BaseStation (eNode-B)`** – класс, моделирующий работу базовой станции LTE (отвечает за обслуживание зарегистрированных UE, хранение контекста подключённых абонентов и взаимодействие с MME)
+- **`JsonHlrEir`** – реализация подсистемы HLR(+EIR) на основе JSON-хранилища. Используется для проверки существования абонентов, а также хранения информации о текущем состоянии абонентов
+- **`MobilityManagmentEntity`** – класс, моделирующий работу узела управления мобильностью сети сотовой связи (реализует процедуры регистрации UE, проверку абонентов через HLR(+EIR), назначение временных идентификаторов M-TMSI, ведение временного регистра VLR, выбор обслуживающей базовой станции и маршрутизацию сетевых операций)
 - **`types`** – пользовательские типы данных, описывающие доменную модель (IPv4, IMSI, IMEI, Nodes, Port, Point3D, Protocol)
 - **`ThreadSafeQueue`**- потокобезопасная очередь
 - **`utils`** – вспомогательные функции
@@ -194,9 +253,8 @@
 ### Сетевое взаимодействие:
 - **`ClientSocket`** – обёртка над TCP-клиентским сокетом
 - **`ServerSocket`** – обёртка над TCP-серверным сокетом
-- **`AppProtocol`** – компонент прикладного сетевого протокола обмена данными между клиентом и сервером
+- **`PacketTransporter`** – компонент прикладного сетевого протокола обмена данными между клиентом и сервером
 - **`JsonSerializer`**, **`BinarySerializer`** – преобразование данных в сетевой формат и обратно
-
 
 ## Сборка проекта
 Приложение разрабатывается на операционной системе Alt Linux.
@@ -224,14 +282,94 @@ cmake --build .
 cmake --build . -jN
 ```
 
-### Пример config.json
+### Пример ue.json
 ```json
 {
     "ip": "127.0.0.1",
     "port": 7777,
-    "imei": "490154203237518",
-    "imsi": "404685505601234",
-    "loc": [0, 0.6, -45.84]
+    "imei": "158863118273320",
+    "imsi": "12345601112233",
+    "msisdn": "89991112233",
+    "loc": [-34.2, 0, 0]
+}
+```
+
+### Пример epc.json
+```json
+{
+  "simtel_ttl": 120,
+  "hlrEir":
+  {
+    "format": "JSON",
+    "provider": "file",
+    "path": "../data/hlrEir.json"
+  },
+  "nodes_file": "../data/nodes.json",
+  "mme_config": "../data/mme.json"
+}
+```
+
+### Пример hlrEir.json
+```json
+[
+  {
+    "imsi": "12345601112233",
+    "imei": "158863118273320",
+    "msisdn": "89991112233",
+    "status": "inactive"
+  },
+  {
+    "imsi": "12345603334455",
+    "imei": "325314891006270",
+    "msisdn": "89993334455",
+    "status": "inactive"
+  },
+  {
+    "imsi": "12345605556677",
+    "imei": "891352784123650",
+    "msisdn": "89995556677",
+    "status": "inactive"
+  },
+  {
+    "imsi": "12345607778899",
+    "imei": "891355118756160",
+    "msisdn": "89997778899",
+    "status": "inactive"
+  }
+]
+```
+
+### Пример mme.json
+```json
+[
+  {
+    "id": 1,
+    "maximum_records_in_vlr": 100
+  }
+]
+```
+
+### Пример nodes.json
+```json
+{
+  "baseStations": [
+    {
+      "id": 1,
+      "mmeId": 1,
+      "position": [-100, 0, 0],
+      "coverageRadius": 120.0,
+      "maxSupportedConnections": 10,
+      "bufferBytesSizePerConnection": 1024
+    },
+    {
+      "id": 2,
+      "mmeId": 2,
+      "position": [100, 0, 0],
+      "coverageRadius": 120.0,
+      "maxSupportedConnections": 10,
+      "bufferBytesSizePerConnection": 1024
+    }
+  ]
 }
 ```
 
@@ -240,7 +378,7 @@ cmake --build . -jN
 #### Запуск клиента
 Чтение параметров только из CLI:
 ```bash
-./TelecomAppClient --ip 127.0.0.1 --port 7777 --imei 123456789098952 --imsi 460001357924680 --loc 1.6 -4.45 123.335 --nodes nodeA,nodeB
+./TelecomAppClient --ip 127.0.0.1 --port 7777 --imei 123456789098952 --imsi 460001357924680 --msisdn 88120001122 --loc 1.6 -4.45 123.335 --nodes nodeA,nodeB
 ```
 
 Чтение параметров только из JSON файла:
@@ -288,7 +426,7 @@ chmod +x runClients.sh
 ```bash
 cd build # нужно выполнять, только если Вы в корневой директории
 
-./TelecomAppServer --port 7777 --loc -3.14 5.45 13.335
+./TelecomAppServer --port 7777 --loc -3.14 5.45 13.335 --config ../data/epc.json
 ```
 
 #### Запуск тестов

@@ -25,6 +25,7 @@ public:
     static void closeClientConnection(int clientFileDescriptor);
 
     static bool sendAllData(int clientFileDescriptor, const BytesBuffer& data);
+    static bool sendByte(int clientFileDescriptor, uint8_t byte);
     static std::optional<BytesBuffer> receiveAllData(int clientFileDescriptor, size_t bytesCount);
 };
 

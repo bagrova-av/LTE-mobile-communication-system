@@ -12,6 +12,7 @@ struct AppState
     LocationPoint3D location;
     bool isActive = false;
     Protocol protocol = Protocol::JSON;
+    std::optional<M_TMSI> m_tmsi;
 };
 
 struct AppConfig
@@ -19,14 +20,15 @@ struct AppConfig
     NetworkAddress netAddr;
     IMSI imsi;
     IMEI imei;
+    MSISDN msisdn;
     Nodes nodes;
 
     AppConfig() = default;
     AppConfig(const NetworkAddress& addr,
-              const IMSI& imsi, const IMEI& imei,
+              const IMSI& imsi, const IMEI& imei, const MSISDN& msisdn,
               const Nodes& nodes);
     AppConfig(const NetworkAddress& addr,
-              const IMSI& imsi, const IMEI& imei);
+              const IMSI& imsi, const IMEI& imei, const MSISDN& msisdn);
     AppConfig(const AppConfig& other);
     AppConfig(AppConfig&& other) noexcept;
 

@@ -51,6 +51,7 @@ void CommandHandler::process()
               << " IP Address : " << app.getIP() << '\n'
               << " Port       : " << app.getPort() << '\n'
               << " IMEI       : " << app.getIMEI() << '\n'
+              << " MSISDN     : " << app.getMSISDN() << '\n'
               << " Nodes      : " << app.getNodes();
 
     std::string commandStr;
@@ -94,7 +95,7 @@ void CommandHandler::process()
             Logger::warning("Error: you entered invalid command '" + commandName + "'");
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(90));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));

@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <array>
 #include <vector>
+#include <string>
+#include <utility>
 #include <cmath>
 
 #include <concepts>
@@ -15,9 +17,13 @@
 
 using Octet = uint8_t;
 using IMSI = std::string;
+using M_TMSI = uint32_t;
 using IMEI = std::string;
+using MSISDN = std::string;
 using Nodes = std::string;
 using Port = uint16_t;
+using BaseStationId = uint32_t;
+using MmeId = size_t;
 
 struct IPv4
 {
@@ -157,6 +163,8 @@ enum class Protocol : uint8_t
 std::ostream& operator<<(std::ostream& out, const Protocol& protocol);
 
 using BytesBuffer = std::vector<uint8_t>;
+
+using Seconds = float;
 
 #endif
 

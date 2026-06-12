@@ -23,6 +23,15 @@ TEST(ValidatorsTest, IMSI_ValidInput)
     EXPECT_TRUE(validateIMSI("310150"));
 }
 
+TEST(ValidatorsTest, MSISDN_ValidInput)
+{
+    EXPECT_TRUE(validateMSISDN("845999345897534"));
+    EXPECT_TRUE(validateMSISDN("84599934589753"));
+    EXPECT_TRUE(validateMSISDN("8459993458975"));
+    EXPECT_TRUE(validateMSISDN("845999345897"));
+    EXPECT_TRUE(validateMSISDN("84599934589"));
+}
+
 TEST(ValidatorsTest, IMEI_InvalidInput)
 {
     EXPECT_FALSE(validateIMEI("4901542032375189"));
@@ -55,6 +64,31 @@ TEST(ValidatorsTest, IMSI_InvalidInput)
     EXPECT_FALSE(validateIMSI("310150l23456789"));
     EXPECT_FALSE(validateIMSI("31015@123456789"));
     EXPECT_FALSE(validateIMSI("31.150123456789"));
+}
+
+TEST(ValidatorsTest, MSISDN_InvalidInput)
+{
+    EXPECT_FALSE(validateMSISDN("8459993458"));
+    EXPECT_FALSE(validateMSISDN("845999345"));
+    EXPECT_FALSE(validateMSISDN("84599934"));
+    EXPECT_FALSE(validateMSISDN("8459993"));
+    EXPECT_FALSE(validateMSISDN("845999"));
+    EXPECT_FALSE(validateMSISDN("84599"));
+    EXPECT_FALSE(validateMSISDN("8459"));
+    EXPECT_FALSE(validateMSISDN("845"));
+    EXPECT_FALSE(validateMSISDN("84"));
+    EXPECT_FALSE(validateMSISDN("8"));
+    EXPECT_FALSE(validateMSISDN(""));
+
+    EXPECT_FALSE(validateMSISDN("8459993458975341"));
+    EXPECT_FALSE(validateMSISDN("8459993458975340"));
+    EXPECT_FALSE(validateMSISDN("84599934589753401"));
+
+    EXPECT_FALSE(validateMSISDN("84599934589734a"));
+    EXPECT_FALSE(validateMSISDN("-84599934589753"));
+    EXPECT_FALSE(validateMSISDN("8459993l5897534"));
+    EXPECT_FALSE(validateMSISDN("8@5999345897534"));
+    EXPECT_FALSE(validateMSISDN("845.99345897534"));
 }
 
 TEST(ValidatorsTest, Port_ValidInput)

@@ -1,32 +1,12 @@
-#include <iostream>
 #include <sstream>
 #include <cctype>
-
-#include <filesystem>
 #include <unistd.h>
 
 #include "./app/App.h"
 #include "./CommandHandler/CommandHandler.h"
 #include "../CORE/NetworkAddress.h"
-
-#include "../COMMON/logging/FileLogger.h"
-
+#include "../../COMMON/utils.h"
 #include "../COMMON/parserUtils.h"
-
-void initLogger(const std::string& executablePath)
-{
-    std::filesystem::path execPath = executablePath;
-    std::string logFileName = "telecomAppClient_PID" + std::to_string(getpid()) + ".log";
-    std::filesystem::path logPath = execPath.parent_path() / logFileName;
-
-    auto fileLogger = std::make_unique<FileLogger>(logPath.string());
-    Logger::setLogger(std::move(fileLogger));
-
-    std::cout << "==========================================" << '\n';
-    std::cout << "  Log file: " << logFileName << '\n';
-    std::cout << "  Process ID (PID): " << getpid() << '\n';
-    std::cout << "==========================================" << '\n';
-}
 
 std::optional<std::pair<AppConfig, LocationPoint3D>> loadConfiguration(int argc, char** argv)
 {
@@ -42,7 +22,7 @@ std::optional<std::pair<AppConfig, LocationPoint3D>> loadConfiguration(int argc,
     if (!configPath.empty())
     {
         Logger::info("Loading parameters from " + configPath);
-        if (!parseJSON(configPath, params.value()))
+        if (!parseAppJSON(configPath, params.value()))
         {
             Logger::error("Failed to read parameters from " + configPath + ". Shutting down");
             return std::nullopt;
@@ -63,7 +43,7 @@ std::optional<std::pair<AppConfig, LocationPoint3D>> loadConfiguration(int argc,
 int main(int argc, char** argv)
 {
     Logger::setMinimumLevel(LogLevel::DEBUG);
-    initLogger(argv[0]);
+    initLogger(argv[0], "telecomAppClient_PID");
 
     auto resultConfiguration = loadConfiguration(argc, argv);
     if (!resultConfiguration.has_value())
@@ -72,7 +52,7 @@ int main(int argc, char** argv)
     }
     const auto& [appConfig, initialLocation] = resultConfiguration.value();
 
-    AppState initialState{ initialLocation, false, Protocol::JSON };
+    AppState initialState{ initialLocation, false, Protocol::JSON, std::nullopt };
 
     App app(appConfig, initialState);
     CommandHandler menu(app);

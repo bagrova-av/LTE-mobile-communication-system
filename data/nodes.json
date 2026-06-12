@@ -1,0 +1,20 @@
+{
+  "baseStations": [
+    {
+      "id": 1,
+      "mmeId": 1,
+      "position": [-100, 0, 0],
+      "coverageRadius": 120.0,
+      "maxSupportedConnections": 10,
+      "bufferBytesSizePerConnection": 1024
+    },
+    {
+      "id": 2,
+      "mmeId": 2,
+      "position": [100, 0, 0],
+      "coverageRadius": 120.0,
+      "maxSupportedConnections": 10,
+      "bufferBytesSizePerConnection": 1024
+    }
+  ]
+}
