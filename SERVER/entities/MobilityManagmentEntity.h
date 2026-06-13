@@ -7,6 +7,8 @@
 #include "./hlrAndEir/JsonHlrEir.h"
 #include "../../CORE/entitiesConfigs/MmeConfig.h"
 #include "SmsCenter.h"
+#include "../../CORE/network/NetworkMessages.h"
+#include "../../CORE/network/SerializerInterface.h"
 
 struct clientsData
 {
@@ -31,7 +33,8 @@ private:
     std::mutex mmeMutex;
 
     M_TMSI generateTMSI();
-    bool detachClientWithoutMutex(M_TMSI m_tmsi); 
+    bool detachClientWithoutMutex(M_TMSI m_tmsi);
+    std::optional<std::pair<M_TMSI, BaseStationId>> findRoutingInfoForSms(const MSISDN& receiverMsisdn);
 
 public:
     explicit MobilityManagmentEntity(const MmeConfig& config,
@@ -47,8 +50,9 @@ public:
     bool detachClient(M_TMSI m_tmsi);
     void startHandover(M_TMSI m_tmsi, const LocationPoint3D& newClientLocation);
     void sendSmsToSmsc();
-    //void handleSmsRequest(M_TMSI senderTmsi);
-    std::optional<std::pair<M_TMSI, BaseStationId>> findRoutingInfoForSms(const MSISDN& receiverMsisdn);
+    std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request,
+                                                       const SerializerInterface& serializer);
+    void sendSmsSubmitAccept();
 };
 
 #endif

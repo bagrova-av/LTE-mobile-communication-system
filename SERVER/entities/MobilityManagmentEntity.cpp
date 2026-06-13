@@ -165,10 +165,70 @@ void MobilityManagmentEntity::sendSmsToSmsc()
     //TO-DO
 }
 
-std::optional<std::pair<M_TMSI, BaseStationId>> MobilityManagmentEntity::findRoutingInfoForSms(const MSISDN& receiverMsisdn)
+std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(const SmsSendRequest& request,
+                                                                            const SerializerInterface& serializer)
 {
     std::lock_guard<std::mutex> lock(mmeMutex);
 
+    auto itSender = visitorLocationRegister.find(request.senderTmsi);
+    if (itSender == visitorLocationRegister.end())
+    {
+        Logger::info("MME: The sender " + request.receiverMsisdn + "is not registered in the VLR, "
+                    "so it is impossible to deliver SMS");
+        return std::nullopt;
+    }
+
+    auto receiverHlr = homeLocationAndEquipmentIdentityRegister->getSubscriberByMsisdn(request.receiverMsisdn);
+    if (!receiverHlr.has_value())
+    {
+        Logger::warning("MME: SMS rejected because the receiver MSISDN unknown in HLR and EIR");
+        return std::nullopt; 
+    }
+
+    auto smsIds = smsCenter->storeMessage(request.senderTmsi, itSender->second.msisdn,
+                                          request.receiverMsisdn, request.text);
+    if (!smsIds.has_value())
+    {
+        return std::nullopt; 
+    }
+
+    auto routingInfo = findRoutingInfoForSms(request.receiverMsisdn);
+    if (!routingInfo.has_value())
+    {
+        // Logger::info("MME: The recipient " + request.receiverMsisdn + "is not registered in the VLR now, "
+        //             "so it is impossible to deliver him SMS");
+        Logger::info("MME: receiver " + request.receiverMsisdn + " offline. "
+                        "SMS stored in SMSC");
+        return smsIds;
+    }
+
+    // Immediate delivery attempt
+    size_t offset = 0;
+    size_t maxTextLength = smsCenter->getMaxTextLength();
+    std::string partText;
+    for (const auto& smsId : smsIds.value())
+    {
+        partText = request.text.substr(offset, maxTextLength);
+        offset += maxTextLength;
+
+        SmsIncomingMessage message{routingInfo.value().first,
+                                   itSender->second.msisdn,
+                                   smsId,
+                                   partText};
+        BaseStation* baseStation = getBaseStationById(routingInfo.value().second);
+        if (!baseStation)
+        {
+            Logger::info("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
+        }
+        baseStation->pushMessageToBuffer(routingInfo.value().first, serializer.serialize(message));
+        Logger::info("MME: SMS with ID " + std::to_string(smsId)
+                    + " routed immediately to the base station " + std::to_string(routingInfo.value().second));
+    }
+    return smsIds;
+}
+
+std::optional<std::pair<M_TMSI, BaseStationId>> MobilityManagmentEntity::findRoutingInfoForSms(const MSISDN& receiverMsisdn)
+{
     auto itTmsi = msisdnLookupTmsi.find(receiverMsisdn);
     if (itTmsi == msisdnLookupTmsi.end())
     {

@@ -35,16 +35,35 @@ private:
     SmsId nextSmsId;
     std::mutex smscMutex;
 
-    std::optional<SmsId> storeOneMessage(M_TMSI senderTmsi, const MSISDN& senderMsisdn,
-                                        const MSISDN& receiverMsisdn, const std::string& text);
+    SmsId storeOneMessageWithoutMutex(M_TMSI senderTmsi, const MSISDN& senderMsisdn,
+                                     const MSISDN& receiverMsisdn, const std::string& text);
 
 public:
     SmsCenter(const SmsCenterConfig& config);
+
+    size_t getMaxTextLength() const;
+    size_t getMaxBufferCount() const;
+    Milliseconds getSmsTtlMs() const;
 
     std::optional<std::vector<SmsId>> storeMessage(M_TMSI senderTmsi, const MSISDN& senderMsisdn,
                                                 const MSISDN& receiverMsisdn, const std::string& fullText);            
     std::vector<SmsRecord> popMessagesForReceiver(const MSISDN& receiverMmsisdn);
     std::optional<SmsRecord> markSmsAsDelivered(SmsId smsId);
 };
+
+inline size_t SmsCenter::getMaxTextLength() const
+{
+    return config.maxTextLength;
+}
+
+inline size_t SmsCenter::getMaxBufferCount() const
+{
+    return config.maxBufferCount;
+}
+
+inline Milliseconds SmsCenter::getSmsTtlMs() const
+{
+    return config.smsTtlMs;
+}
 
 #endif

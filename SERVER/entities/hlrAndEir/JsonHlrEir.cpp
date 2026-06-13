@@ -76,6 +76,7 @@ bool JsonHlrEir::loadRecordsFromFile(const std::string& filePath)
 
             subscriberRecords.emplace(imsiTemp,
                                       HlrEirRecord{std::move(identityData), std::move(sessionData)});
+            msisdnLookupImsi.emplace(msisdnTemp, imsiTemp);
         }
     }
     catch (const json::exception& ex)
@@ -99,9 +100,29 @@ HlrEirRecord* JsonHlrEir::getSubscriberPointerByImsi(const IMSI& imsi)
     return &(it->second);
 }
 
+HlrEirRecord* JsonHlrEir::getSubscriberPointerByMsisdn(const MSISDN& msisdn)
+{
+    auto it = msisdnLookupImsi.find(msisdn);
+    if (it == msisdnLookupImsi.end())
+    {
+        return nullptr;
+    }
+    return getSubscriberPointerByImsi(it->second);
+}
+
 std::optional<HlrEirRecord> JsonHlrEir::getSubscriberByImsi(const IMSI& imsi)
 {
     HlrEirRecord* subscriberRecord = getSubscriberPointerByImsi(imsi);
+    if (!subscriberRecord)
+    {
+        return std::nullopt;
+    }
+    return *subscriberRecord;
+}
+
+std::optional<HlrEirRecord> JsonHlrEir::getSubscriberByMsisdn(const MSISDN& msisdn)
+{
+    HlrEirRecord* subscriberRecord = getSubscriberPointerByMsisdn(msisdn);
     if (!subscriberRecord)
     {
         return std::nullopt;

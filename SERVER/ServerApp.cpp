@@ -163,6 +163,11 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                         sendRrcReject(clientFileDescriptor, receivedProtocol, "No coverage");
                     }
                 }
+                else
+                {
+                    Logger::error("Failed to deserialize RRC_SEARCH packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                }
                 break;
             }
             case PacketType::ATTACH_REQUEST :
@@ -185,6 +190,11 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     {
                         sendAttachReject(clientFileDescriptor, receivedProtocol, "Registration failed");
                     }
+                }
+                else
+                {
+                    Logger::error("Failed to deserialize ATTACH_REQUEST packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
                 }
                 break;
             }
@@ -224,6 +234,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                 }
                 else
                 {
+                    Logger::error("Failed to deserialize LOCATION packet");
                     sendErrorResponse(clientFileDescriptor, receivedProtocol, "Invalid location data");
                 }
                 break;
@@ -249,6 +260,40 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     currentTmsi = std::nullopt;
                     ServerSocket::closeClientConnection(clientFileDescriptor);
                     return; 
+                }
+                else
+                {
+                    Logger::error("Failed to deserialize DETACH_REQUEST packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                }
+                break;
+            }
+            case PacketType::SMS_SEND :
+            {
+                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::SMS_SEND,
+                                                                                dataPacket.value().data);
+                if (message.has_value())
+                {
+                    const SmsSendRequest& smsSendRequest = std::get<SmsSendRequest>(message.value());
+
+                    auto globalSmsIds = mme->handleSmsRequest(smsSendRequest, *serializer);
+                    if (globalSmsIds.has_value())
+                    {
+                        for (const auto& globalSmsId : globalSmsIds.value())
+                        {
+                            sendSmsSubmitAccept(clientFileDescriptor, receivedProtocol,
+                                                smsSendRequest.smsId, globalSmsId);
+                        }
+                    }
+                    else
+                    {
+                        sendErrorResponse(clientFileDescriptor, receivedProtocol, "The SMS was not delivered");
+                    }
+                }
+                else
+                {
+                    Logger::error("Failed to deserialize SMS_SEND packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed SMS packet");
                 }
                 break;
             }
@@ -370,6 +415,24 @@ void ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, c
     PacketTransporter::sendDataPacketResponse(clientFileDescriptor, 
                                               static_cast<uint8_t>(protocol),
                                               PacketType::ERROR_MESSAGE,
+                                              data);
+}
+
+void ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId)
+{
+    SmsSubmitAccept smsSubmitAccept{tempSmsId, globalSmsId};
+    auto serializer = SerializerFactory::createSerializer(protocol);
+    if (!serializer)
+    {
+        Logger::warning("Received unknown protocol header from client");
+        ServerSocket::closeClientConnection(clientFileDescriptor);
+        return;
+    }
+
+    BytesBuffer data = serializer->serialize(smsSubmitAccept);
+    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
+                                              static_cast<uint8_t>(protocol),
+                                              PacketType::SMS_SUBMIT_ACCEPT,
                                               data);
 }
 

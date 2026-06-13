@@ -1,4 +1,5 @@
 #include "SmsCenter.h"
+#include "../../COMMON/logging/Logger.h"
 
 SmsCenter::SmsCenter(const SmsCenterConfig& config) :
     config(config)
@@ -9,36 +10,32 @@ std::optional<std::vector<SmsId>> SmsCenter::storeMessage(M_TMSI senderTmsi, con
 {
     std::lock_guard<std::mutex> lock(smscMutex);
 
-    if (smsStorage.size() >= config.maxBufferCount)
+    size_t countParts = (fullText.length() + config.maxTextLength - 1) / config.maxTextLength;
+    if (smsStorage.size() + countParts >= config.maxBufferCount)
     {
+        Logger::warning("SMS center: buffer full, cannot store message with " + std::to_string(countParts) + " parts");
         return std::nullopt;
     }
 
     std::vector<SmsId> generatedSmsIds;
-    size_t fullTextSize = fullText.length();
+    generatedSmsIds.reserve(countParts);
     std::string textPart;
     std::optional<SmsId> smsId;
-    for (size_t i = 0; i < fullTextSize; i += config.maxTextLength)
+    size_t startPosition;
+    for (size_t i = 0; i < countParts; ++i)
     {
-        textPart = fullText.substr(i, config.maxTextLength);
-        smsId = storeOneMessage(senderTmsi, senderMsisdn, receiverMsisdn, textPart);
-        if (!smsId.has_value())
-        {
-            return std::nullopt;
-        }
+        startPosition = i * config.maxTextLength;
+        textPart = fullText.substr(startPosition, config.maxTextLength);
+
+        smsId = storeOneMessageWithoutMutex(senderTmsi, senderMsisdn, receiverMsisdn, textPart);
         generatedSmsIds.push_back(smsId.value());
     }
     return generatedSmsIds;
 }
 
-std::optional<SmsId> SmsCenter::storeOneMessage(M_TMSI senderTmsi, const MSISDN& senderMsisdn,
-                                                const MSISDN& receiverMsisdn, const std::string& text)
+SmsId SmsCenter::storeOneMessageWithoutMutex(M_TMSI senderTmsi, const MSISDN& senderMsisdn,
+                                            const MSISDN& receiverMsisdn, const std::string& text)
 {
-    if (smsStorage.size() >= config.maxBufferCount)
-    {
-        return std::nullopt;
-    }
-
     SmsId smsId = nextSmsId++;
     smsStorage.emplace(smsId, SmsRecord{smsId, senderTmsi, senderMsisdn,
                                         receiverMsisdn, text,

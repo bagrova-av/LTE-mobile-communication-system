@@ -33,6 +33,8 @@ private:
     void sendDistanceResponce(int clientFileDescriptor, Protocol protocol, CoordinatesType distance);
     void sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message);
 
+    void sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId);
+
 public:
     ServerApp(uint16_t port, const LocationPoint3D& location, const EpcConfig& epcConfig);
     
