@@ -17,6 +17,7 @@ struct EpcConfig
     HlrEirConfig hlrEir;
     std::string nodesConfigFile;
     std::string mmeConfigFile;
+    std::string smsCenterConfigFile;
 };
 
 #endif

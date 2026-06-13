@@ -8,7 +8,7 @@ struct SmsCenterConfig
 {
     size_t maxTextLength;
     size_t maxBufferCount;
-    Milliseconds ttlMs;
+    Milliseconds smsTtlMs;
 };
 
 #endif

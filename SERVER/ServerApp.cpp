@@ -46,9 +46,16 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location, const EpcCo
         throw std::runtime_error("ServerApp: failed to load mobility management entities from their config file");
     }
 
+    SmsCenterConfig smsCenterConfig;
+    if (!parseSmsCenterJSON(epcConfig.smsCenterConfigFile, smsCenterConfig))
+    {
+        throw std::runtime_error("ServerApp: failed to load sms center from its config file");
+    }
+
     mme = std::make_unique<MobilityManagmentEntity>(mobilityManagmentEntitiesConfigs[0],
                                                     std::move(baseStations),
-                                                    std::move(hlrEir));
+                                                    std::move(hlrEir),
+                                                    std::make_unique<SmsCenter>(smsCenterConfig));
 
     Logger::info("ServerApp initialized successfully. Listening on port " 
                 + std::to_string(listeningPort));

@@ -12,6 +12,7 @@
 #include "../CORE/entitiesConfigs/EpcConfig.h"
 #include "../CORE/entitiesConfigs/SubscriberRecord.h"
 #include "../CORE/entitiesConfigs/MmeConfig.h"
+#include "../CORE/entitiesConfigs/SmsCenterConfig.h"
 
 std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& configPath);
 
@@ -48,5 +49,7 @@ bool parseBaseStationsJSON(const std::string& configPath, std::vector<BaseStatio
 //bool parseHlrEirRecordsJSON(const std::string& configPath, std::vector<HlrEirRecord>& records);
 
 bool parseMmeJSON(const std::string& configPath, std::vector<MmeConfig>& mmes);
+
+bool parseSmsCenterJSON(const std::string& configPath, SmsCenterConfig& smsCenterConfig);
 
 #endif

@@ -377,11 +377,12 @@ bool parseEpcJSON(const std::string& configPath, EpcConfig& epcConfig)
     {
         configFile >> data;
 
-        if (!data.contains("simtel_ttl") || !data["simtel_ttl"].is_number_unsigned())
+        if (!data.contains("simtel_ttl_sec") || !data["simtel_ttl_sec"].is_number_unsigned())
         {
+            Logger::error("Validation error: simtel time to life must be a positive integer value (in seconds)");
             return false;
         }
-        epcConfig.simtelTtl = data["simtel_ttl"].get<Seconds>();
+        epcConfig.simtelTtl = data["simtel_ttl_sec"].get<Seconds>();
         
         if (!data.contains("hlrEir"))
         {
@@ -418,6 +419,12 @@ bool parseEpcJSON(const std::string& configPath, EpcConfig& epcConfig)
             return false;
         }
         epcConfig.mmeConfigFile = data["mme_config"].get<std::string>();
+
+        if (!data.contains("smsc_config"))
+        {
+            return false;
+        }
+        epcConfig.smsCenterConfigFile = data["smsc_config"].get<std::string>();
     }
     catch(const std::exception& ex)
     {
@@ -443,28 +450,28 @@ bool parseBaseStationsJSON(const std::string& configPath, std::vector<BaseStatio
     try
     {
         configFile >> data;
-        if (!data.contains("baseStations") || !data["baseStations"].is_array())
+        if (!data.contains("base_stations") || !data["base_stations"].is_array())
         {
             return false;
         }
 
-        const auto& items = data["baseStations"];
+        const auto& items = data["base_stations"];
         bsConfigs.reserve(items.size());
         for (const auto& item : items)
         {
             if (!item.contains("id") || !item["id"].is_number_unsigned())
             {
-                Logger::error("Validation error: base station ID must be an integer value");
+                Logger::error("Validation error: base station ID must be a positive integer value");
                 return false;
             }
             BaseStationId id = item["id"].get<BaseStationId>();
 
-            if (!item.contains("mmeId") || !item["mmeId"].is_number_unsigned())
+            if (!item.contains("mme_id") || !item["mme_id"].is_number_unsigned())
             {
-                Logger::error("Validation error: mobility management entity ID must be an integer value");
+                Logger::error("Validation error: mobility management entity ID must be a positive integer value");
                 return false;
             }
-            MmeId mmeId = item["mmeId"].get<MmeId>();
+            MmeId mmeId = item["mme_id"].get<MmeId>();
 
             if (!item.contains("position"))
             {
@@ -476,29 +483,30 @@ bool parseBaseStationsJSON(const std::string& configPath, std::vector<BaseStatio
                 return false;
             }
 
-            if (!item.contains("coverageRadius") || !item["coverageRadius"].is_number()
-                || item["coverageRadius"] < 0)
+            if (!item.contains("coverage_radius") || !item["coverage_radius"].is_number()
+                || item["coverage_radius"] < 0)
             {
                 Logger::error("Validation error: coverage radius must be a positive number");
                 return false;
             }
-            CoordinatesType coverageRadius = item["coverageRadius"].get<CoordinatesType>();
+            CoordinatesType coverageRadius = item["coverage_radius"].get<CoordinatesType>();
 
-            if (!item.contains("maxSupportedConnections")
-                || !item["maxSupportedConnections"].is_number_unsigned())
+            if (!item.contains("max_supported_connections")
+                || !item["max_supported_connections"].is_number_unsigned())
             {
-                Logger::error("Validation error: number with max supported connections must be an integer value");
+                Logger::error("Validation error: number with max supported connections must be a positive integer value");
                 return false;
             }
-            size_t maxSupportedConnections = item["maxSupportedConnections"].get<size_t>();
+            size_t maxSupportedConnections = item["max_supported_connections"].get<size_t>();
 
-            if (!item.contains("bufferBytesSizePerConnection")
-                || !item["bufferBytesSizePerConnection"].is_number_unsigned())
+            if (!item.contains("buffer_bytes_size_per_connection")
+                || !item["buffer_bytes_size_per_connection"].is_number_unsigned())
             {
-                Logger::error("Validation error: number with buffer bytes size per connection must be an integer value");
+                Logger::error("Validation error: number with buffer bytes size per connection "
+                              "must be a positive integer value");
                 return false;
             }
-            size_t bufferBytesSizePerConnection = item["bufferBytesSizePerConnection"].get<size_t>();
+            size_t bufferBytesSizePerConnection = item["buffer_bytes_size_per_connection"].get<size_t>();
 
             bsConfigs.emplace_back(BaseStationConfig{id,
                                                     mmeId,
@@ -615,23 +623,67 @@ bool parseMmeJSON(const std::string& configPath, std::vector<MmeConfig>& mmes)
         {
             if (!item.contains("id") || !item["id"].is_number_unsigned())
             {
-                Logger::error("Validation error: MME ID must be an integer value");
+                Logger::error("Validation error: MME ID must be a positive integer value");
                 return false;
             }
 
-            if (!item.contains("maximum_records_in_vlr")
-                || !item["maximum_records_in_vlr"].is_number_unsigned())
+            if (!item.contains("max_records_in_vlr") || !item["max_records_in_vlr"].is_number_unsigned())
             {
-                Logger::error("Validation error: number with maximum records in VLR must be an integer value");
+                Logger::error("Validation error: number with maximum records in VLR must be a positive integer value");
                 return false;
             }
 
-            mmes.emplace_back(item["id"].get<int>(), item["maximum_records_in_vlr"].get<int>());
+            mmes.emplace_back(item["id"].get<int>(), item["max_records_in_vlr"].get<int>());
         }
     }
     catch(const std::exception& ex)
     {
         Logger::error(std::format("Error: Failed to process JSON file with MMEs configs.\nDetails: {}",
+                                    ex.what()));
+        return false;
+    }
+
+    configFile.close();
+    return true;
+}
+
+bool parseSmsCenterJSON(const std::string& configPath, SmsCenterConfig& smsCenterConfig)
+{
+    std::ifstream configFile(configPath);
+    if (!configFile.is_open())
+    {
+        Logger::error("Error: could not open SMS center config file: " + configPath);
+        return false;
+    }
+
+    json data;
+    try
+    {
+        configFile >> data;
+        if (!data.contains("max_text_length") || !data["max_text_length"].is_number_unsigned())
+        {
+            Logger::error("Validation error: maximum SMS length for message splitting must be a positive integer value");
+            return false;
+        }
+        smsCenterConfig.maxTextLength = data["max_text_length"].get<size_t>();
+
+        if (!data.contains("max_buffer_count") || !data["max_buffer_count"].is_number_unsigned())
+        {
+            Logger::error("Validation error: volume of the SMS storage buffer must be a positive integer value");
+            return false;
+        }
+        smsCenterConfig.maxBufferCount = data["max_buffer_count"].get<size_t>();
+
+        if (!data.contains("sms_ttl_ms") || !data["sms_ttl_ms"].is_number_unsigned())
+        {
+            Logger::error("Validation error: SMS time to life must be a positive integer value (in milliseconds)");
+            return false;
+        }
+        smsCenterConfig.smsTtlMs = data["sms_ttl_ms"].get<Milliseconds>();
+    }
+    catch(const std::exception& ex)
+    {
+        Logger::error(std::format("Error: Failed to process JSON file with SMS center configs.\nDetails: {}",
                                     ex.what()));
         return false;
     }

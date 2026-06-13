@@ -1,5 +1,5 @@
 {
-  "simtel_ttl": 120,
+  "simtel_ttl_sec": 120,
   "hlrEir":
   {
     "format": "JSON",
@@ -7,5 +7,6 @@
     "path": "../data/hlrEir.json"
   },
   "nodes_file": "../data/nodes.json",
-  "mme_config": "../data/mme.json"
+  "mme_config": "../data/mme.json",
+  "smsc_config": "../data/smsc.json"
 }

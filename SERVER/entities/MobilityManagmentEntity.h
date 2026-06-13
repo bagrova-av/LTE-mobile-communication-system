@@ -6,6 +6,7 @@
 #include "BaseStation.h"
 #include "./hlrAndEir/JsonHlrEir.h"
 #include "../../CORE/entitiesConfigs/MmeConfig.h"
+#include "SmsCenter.h"
 
 struct clientsData
 {
@@ -21,6 +22,7 @@ private:
     std::vector<std::unique_ptr<BaseStation>> baseStations;
     std::unordered_map<M_TMSI, clientsData> visitorLocationRegister;
     std::unique_ptr<HlrEirInterface> homeLocationAndEquipmentIdentityRegister;
+    std::unique_ptr<SmsCenter> smsCenter;
     
     std::unordered_map<MSISDN, M_TMSI> msisdnLookupTmsi;
     std::unordered_map<IMSI, M_TMSI> imsiLookupTmsi;
@@ -34,7 +36,8 @@ private:
 public:
     explicit MobilityManagmentEntity(const MmeConfig& config,
                                     std::vector<std::unique_ptr<BaseStation>> baseStations,
-                                    std::unique_ptr<HlrEirInterface> hlrEir);
+                                    std::unique_ptr<HlrEirInterface> hlrEir,
+                                    std::unique_ptr<SmsCenter> smsCenter);
 
     BaseStation* getBaseStationById(BaseStationId baseStationId);
     std::optional<BaseStationId> findBestBaseStation(const LocationPoint3D& clientLocation);

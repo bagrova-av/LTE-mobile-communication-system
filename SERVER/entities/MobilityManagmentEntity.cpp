@@ -4,10 +4,12 @@
 
 MobilityManagmentEntity::MobilityManagmentEntity(const MmeConfig& config,
                                                 std::vector<std::unique_ptr<BaseStation>> baseStations,
-                                                std::unique_ptr<HlrEirInterface> hlrEir) :
+                                                std::unique_ptr<HlrEirInterface> hlrEir,
+                                                std::unique_ptr<SmsCenter> smsCenter) :
     config(config),
     baseStations(std::move(baseStations)),
-    homeLocationAndEquipmentIdentityRegister(std::move(hlrEir))
+    homeLocationAndEquipmentIdentityRegister(std::move(hlrEir)),
+    smsCenter(std::move(smsCenter))
 { }
 
 BaseStation* MobilityManagmentEntity::getBaseStationById(BaseStationId baseStationId)
