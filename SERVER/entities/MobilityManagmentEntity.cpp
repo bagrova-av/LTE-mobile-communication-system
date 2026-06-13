@@ -2,7 +2,7 @@
 #include "../../COMMON/constants.h"
 #include "../../COMMON/logging/Logger.h"
 
-MobilityManagmentEntity::MobilityManagmentEntity(MmeConfig config,
+MobilityManagmentEntity::MobilityManagmentEntity(const MmeConfig& config,
                                                 std::vector<std::unique_ptr<BaseStation>> baseStations,
                                                 std::unique_ptr<HlrEirInterface> hlrEir) :
     config(config),

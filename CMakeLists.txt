@@ -73,10 +73,10 @@ target_link_libraries(${PROJECT_NAME}Client PRIVATE ${PROJECT_NAME}ClientLib)
 add_executable(${PROJECT_NAME}Server
     SERVER/mainServer.cpp
     SERVER/ServerApp.cpp
-    #SERVER/entities/hlrAndEir/HlrEirInterface.cpp
     SERVER/entities/hlrAndEir/JsonHlrEir.cpp
     SERVER/entities/BaseStation.cpp
     SERVER/entities/MobilityManagmentEntity.cpp
+    SERVER/entities/SmsCenter.cpp
 )
 target_link_libraries(${PROJECT_NAME}Server PRIVATE ${PROJECT_NAME}Core)
 

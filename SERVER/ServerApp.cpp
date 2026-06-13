@@ -275,7 +275,7 @@ void ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, Bas
                                               data);
 }
 
-void ServerApp::sendRrcReject(int clientFileDescriptor, Protocol protocol, std::string reason)
+void ServerApp::sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
 {
     RrcReject rrcReject{reason};
     auto serializer = SerializerFactory::createSerializer(protocol);
@@ -312,7 +312,7 @@ void ServerApp::sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_
                                               data);
 }
 
-void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, std::string reason)
+void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
 {
     AttachReject attachReject{reason};
     auto serializer = SerializerFactory::createSerializer(protocol);
@@ -348,9 +348,9 @@ void ServerApp::sendDistanceResponce(int clientFileDescriptor, Protocol protocol
                                               data);
 }
 
-void ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, std::string reason)
+void ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message)
 {
-    ErrorResponse errorResponse{reason};
+    ErrorResponse errorResponse{message};
     auto serializer = SerializerFactory::createSerializer(protocol);
     if (!serializer)
     {

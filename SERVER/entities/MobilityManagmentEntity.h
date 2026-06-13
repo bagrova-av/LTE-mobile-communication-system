@@ -32,7 +32,7 @@ private:
     bool detachClientWithoutMutex(M_TMSI m_tmsi); 
 
 public:
-    explicit MobilityManagmentEntity(MmeConfig config,
+    explicit MobilityManagmentEntity(const MmeConfig& config,
                                     std::vector<std::unique_ptr<BaseStation>> baseStations,
                                     std::unique_ptr<HlrEirInterface> hlrEir);
 

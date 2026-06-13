@@ -7,7 +7,6 @@
 class HlrEirInterface
 {
 protected:
-    //std::optional<SubscriberStatus> convertStringToStatus(const std::string& statusString);
     virtual HlrEirRecord* getSubscriberPointerByImsi(const IMSI& imsi) = 0;
 
 public:
