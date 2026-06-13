@@ -35,6 +35,9 @@ private:
 
     void sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId);
 
+    void sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
+                              const std::optional<M_TMSI>& currentTmsi);
+
 public:
     ServerApp(uint16_t port, const LocationPoint3D& location, const EpcConfig& epcConfig);
     

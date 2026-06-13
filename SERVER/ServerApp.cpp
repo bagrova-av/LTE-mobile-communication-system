@@ -126,16 +126,25 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
 void ServerApp::processSingleClient(int clientFileDescriptor)
 {
     std::optional<M_TMSI> currentTmsi;
+    Protocol receivedProtocol = Protocol::JSON;
     while (true)
     {
         std::optional<ReceivedDataPacket> dataPacket = PacketTransporter::receiveDataPacketRequest(clientFileDescriptor);
         if (!dataPacket.has_value())
         {
-            ServerSocket::closeClientConnection(clientFileDescriptor);
-            return;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) // recv() timed out
+            {
+                sendBufferedMessages(clientFileDescriptor, receivedProtocol, currentTmsi);
+                continue;
+            }
+            else
+            {
+                ServerSocket::closeClientConnection(clientFileDescriptor);
+                return;
+            }
         }
 
-        Protocol receivedProtocol = static_cast<Protocol>(dataPacket.value().protocolHeader);
+        receivedProtocol = static_cast<Protocol>(dataPacket.value().protocolHeader);
         auto serializer = SerializerFactory::createSerializer(receivedProtocol);
         if (!serializer)
         {
@@ -297,7 +306,26 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                 }
                 break;
             }
+            case PacketType::SMS_DELIVERY_ACKNOWLEDGE :
+            {
+                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::SMS_DELIVERY_ACKNOWLEDGE,
+                                                                                dataPacket.value().data);
+                if (message.has_value())
+                {
+                    const SmsDeliveryAcknowledge& smsDeliveryAcknowledge =
+                                                            std::get<SmsDeliveryAcknowledge>(message.value());
+                    mme->handleSmsDeliveryAcknowledge(smsDeliveryAcknowledge, *serializer);
+                }
+                else
+                {
+                    Logger::error("Failed to deserialize SMS_DELIVERY_ACKNOWLEDGE packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                }
+                break;
+            }
         }
+
+        sendBufferedMessages(clientFileDescriptor, receivedProtocol, currentTmsi);
     }
 
     if (currentTmsi.has_value())
@@ -306,6 +334,30 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
         currentTmsi = std::nullopt;
     }
     ServerSocket::closeClientConnection(clientFileDescriptor);
+}
+
+void ServerApp::sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
+                                     const std::optional<M_TMSI>& currentTmsi)
+{
+    if (!currentTmsi.has_value())
+    {
+        return;
+    }
+
+    BaseStation* baseStation = mme->getBaseStationByTmsi(currentTmsi.value());
+    if (!baseStation)
+    {
+        return;
+    }
+
+    std::optional<BufferedPacket> pendingPacket;
+    while ( (pendingPacket = baseStation->popMessageFromBuffer(currentTmsi.value())).has_value() )
+    {
+        PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
+                                                  static_cast<uint8_t>(protocol),
+                                                  pendingPacket.value().packetType,
+                                                  pendingPacket.value().data);
+    }
 }
 
 void ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId)

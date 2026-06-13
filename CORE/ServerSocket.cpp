@@ -92,6 +92,16 @@ int ServerSocket::acceptClientConnection()
         return -1;
     }
 
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 100'000; // 100 milliseconds
+    if (setsockopt(clientFileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        Logger::error("ServerSocket: failed when setting the timeout for input functions"
+                      " (" + std::string(std::strerror(errno)) + ")");
+        return -1;
+    }
+
     char clientIp[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &clientAddress.sin_addr, clientIp, sizeof(clientIp));
     Logger::info("ServerSocket: the client connected from " + std::string(clientIp)

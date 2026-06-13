@@ -54,6 +54,17 @@ bool ClientSocket::connectToServer(const IPv4& ip, Port port)
         disconnect();
         return false;
     }
+
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 100'000; // 100 milliseconds
+    if (setsockopt(socketFileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        Logger::error("ClientSocket: failed when setting the timeout for input functions"
+                      " (" + std::string(std::strerror(errno)) + ")");
+        return -1;
+    }
+
     Logger::info("ClientSocket: connected to the server successfully");
     return true;
 }

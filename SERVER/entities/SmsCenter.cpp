@@ -49,20 +49,18 @@ std::vector<SmsRecord> SmsCenter::popMessagesForReceiver(const MSISDN& receiverM
     std::lock_guard<std::mutex> lock(smscMutex);
 
     std::vector<SmsRecord> result;
-    smsStorage.erase(
-        std::remove_if(smsStorage.begin(), smsStorage.end(),
-                        [&](const SmsRecord& record)
-                        {
-                            if (record.receiverMsisdn == receiverMsisdn)
-                            {
-                                result.push_back(record);
-                                return true;
-                            }
-                            return false;
-                        }
-        ),
-        smsStorage.end()
-    );
+    for (auto it = smsStorage.begin(); it != smsStorage.end(); )
+    {
+        if (it->second.receiverMsisdn == receiverMsisdn)
+        {
+            result.push_back(it->second);  // копируем запись
+            it = smsStorage.erase(it);      // удаляем элемент и получаем следующий итератор
+        }
+        else
+        {
+            ++it;
+        }
+    }
 
     return result;
 }

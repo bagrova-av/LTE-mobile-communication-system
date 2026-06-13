@@ -6,6 +6,7 @@
 
 #include "../../CORE/types.h"
 #include "../../COMMON/ThreadSafeQueue.h"
+#include "../../CORE/PacketTransporter.h"
 
 enum class UEState
 {
@@ -13,12 +14,18 @@ enum class UEState
     OFF
 };
 
+struct BufferedPacket
+{
+    PacketType packetType;
+    BytesBuffer data;
+};
+
 struct ClientContext
 {
     M_TMSI m_tmsi;
     int socketFileDescriptor;
     UEState state;
-    ThreadSafeQueue<BytesBuffer> messageBuffer;
+    ThreadSafeQueue<BufferedPacket> messageBuffer;
     size_t currentBufferBytesSize;
 
     ClientContext(M_TMSI m_tmsi, int socketFileDescriptor, UEState state) :

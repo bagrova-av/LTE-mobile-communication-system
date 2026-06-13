@@ -32,6 +32,8 @@ private:
     void handleLocationTask(uint8_t protocolHeader,
                             const SerializerInterface& serializer,
                             const NetworkTask& networkTask);
+    void handleIncomingSms(uint8_t protocolHeader,
+                           const SerializerInterface& serializer);
     void pushTaskToQueue(TaskType type, Protocol protocol, TaskData data);
 
 public:

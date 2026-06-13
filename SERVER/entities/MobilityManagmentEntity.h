@@ -35,6 +35,8 @@ private:
     M_TMSI generateTMSI();
     bool detachClientWithoutMutex(M_TMSI m_tmsi);
     std::optional<std::pair<M_TMSI, BaseStationId>> findRoutingInfoForSms(const MSISDN& receiverMsisdn);
+    BaseStation* getBaseStationByIdWithoutMutex(BaseStationId baseStationId);
+    BaseStation* getBaseStationByTmsiWithoutMutex(M_TMSI m_tmsi);
 
 public:
     explicit MobilityManagmentEntity(const MmeConfig& config,
@@ -43,6 +45,7 @@ public:
                                     std::unique_ptr<SmsCenter> smsCenter);
 
     BaseStation* getBaseStationById(BaseStationId baseStationId);
+    BaseStation* getBaseStationByTmsi(M_TMSI m_tmsi);
     std::optional<BaseStationId> findBestBaseStation(const LocationPoint3D& clientLocation);
 
     std::optional<M_TMSI> attachClient(const IMEI& imei, const IMSI& imsi,
@@ -52,6 +55,8 @@ public:
     void sendSmsToSmsc();
     std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request,
                                                        const SerializerInterface& serializer);
+    void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages,
+                                      const SerializerInterface& serializer);
     void sendSmsSubmitAccept();
 };
 

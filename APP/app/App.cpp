@@ -255,6 +255,12 @@ void App::handleLocationTask(uint8_t protocolHeader,
     }
 }
 
+void App::handleIncomingSms(uint8_t protocolHeader,
+                            const SerializerInterface& serializer)
+{
+    
+}
+
 void App::networkThreadWorker()
 {
     Logger::info("Client network thread started");
@@ -267,7 +273,8 @@ void App::networkThreadWorker()
             break;
         }
 
-        std::unique_ptr<SerializerInterface> serializer = SerializerFactory::createSerializer(networkTask.value().protocol);
+        std::unique_ptr<SerializerInterface> serializer = SerializerFactory::createSerializer(
+                                                                            networkTask.value().protocol);
         if (!serializer)
         {
             Logger::warning("App: the protocol is not supported for transmission");

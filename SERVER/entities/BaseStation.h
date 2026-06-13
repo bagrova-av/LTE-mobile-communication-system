@@ -21,8 +21,10 @@ private:
     std::unordered_map<M_TMSI, std::unique_ptr<ClientContext>> connectedClients;
     std::mutex bsMutex;
 
-    ClientContext* findClientContext(M_TMSI m_tmsi);
-    bool hasEnoughSpaceInBuffer(ClientContext* clientContext, const BytesBuffer& data) const;
+    ClientContext* findClientContextWithoutMutex(M_TMSI m_tmsi);
+    bool hasEnoughSpaceInBufferWithoutMutex(ClientContext* clientContext,
+                                            const BufferedPacket& data) const;
+    size_t getBufferPacketSize(const BufferedPacket& packet) const;
 
 public:
     // BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
@@ -32,8 +34,8 @@ public:
     bool registerClient(M_TMSI m_tmsi, int clientFileDescriptor);
     void removeClient(M_TMSI m_tmsi);
     float calculateSignalStrength(const LocationPoint3D& clientLocation) const;
-    bool pushMessageToBuffer(M_TMSI m_tmsi, const BytesBuffer& data);
-    std::optional<BytesBuffer> popMessageFromBuffer(M_TMSI m_tmsi);
+    bool pushMessageToBuffer(M_TMSI m_tmsi, const BufferedPacket& data);
+    std::optional<BufferedPacket> popMessageFromBuffer(M_TMSI m_tmsi);
     bool sendDeliveryStatusToСlient(M_TMSI m_tmsi);
 
     void setMME(MmeId otherMmeId);
