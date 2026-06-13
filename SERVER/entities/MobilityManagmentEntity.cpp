@@ -160,13 +160,26 @@ void MobilityManagmentEntity::startHandover(M_TMSI m_tmsi, const LocationPoint3D
     //TO-DO
 }
 
-void MobilityManagmentEntity::sendSMStoSMSC()
+void MobilityManagmentEntity::sendSmsToSmsc()
 {
     //TO-DO
 }
 
-std::optional<std::pair<M_TMSI, BaseStationId>> MobilityManagmentEntity::findRoutingInfoForSMS(const MSISDN& msisdn)
+std::optional<std::pair<M_TMSI, BaseStationId>> MobilityManagmentEntity::findRoutingInfoForSms(const MSISDN& receiverMsisdn)
 {
-    //TO-DO
-    return std::nullopt;
+    std::lock_guard<std::mutex> lock(mmeMutex);
+
+    auto itTmsi = msisdnLookupTmsi.find(receiverMsisdn);
+    if (itTmsi == msisdnLookupTmsi.end())
+    {
+        return std::nullopt;
+    }
+
+    auto itVlr = visitorLocationRegister.find(itTmsi->second);
+    if (itVlr == visitorLocationRegister.end())
+    {
+        return std::nullopt;
+    }
+
+    return std::make_pair(itTmsi->second, itVlr->second.currentBaseSationId);
 }

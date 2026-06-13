@@ -46,8 +46,9 @@ public:
                                        BaseStationId baseStationId, int clientFileDescriptor);
     bool detachClient(M_TMSI m_tmsi);
     void startHandover(M_TMSI m_tmsi, const LocationPoint3D& newClientLocation);
-    void sendSMStoSMSC();
-    std::optional<std::pair<M_TMSI, BaseStationId>> findRoutingInfoForSMS(const MSISDN& msisdn);
+    void sendSmsToSmsc();
+    //void handleSmsRequest(M_TMSI senderTmsi);
+    std::optional<std::pair<M_TMSI, BaseStationId>> findRoutingInfoForSms(const MSISDN& receiverMsisdn);
 };
 
 #endif
