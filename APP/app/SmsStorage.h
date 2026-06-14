@@ -4,6 +4,7 @@
 
 #include <mutex>
 #include <optional>
+#include <algorithm>
 
 #include "../../CORE/types.h"
 #include "../../CORE/network/NetworkMessages.h"
@@ -29,6 +30,17 @@ private:
     std::vector<SentSmsRecord> sentSmsRecords;
     std::vector<ReceivedSmsRecord> receivedSmsRecords;
     mutable std::mutex smsMutex;
+
+    template<typename Predicate>
+    SentSmsRecord* findSentSmsRecord(Predicate predicate)
+    {
+        auto it = std::find_if(sentSmsRecords.begin(), sentSmsRecords.end(), predicate);
+        if (it == sentSmsRecords.end())
+        {
+            return nullptr;
+        }
+        return &(*it);
+    }
 
 public:
     void addReceivedSms(const ReceivedSmsRecord& smsRecord);

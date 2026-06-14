@@ -10,4 +10,6 @@ App createTestApp();
 
 std::vector<char*> createArgv(const std::vector<std::string>& args);
 
+std::map<size_t, AddressBookEntry> createTestAddressBook();
+
 #endif

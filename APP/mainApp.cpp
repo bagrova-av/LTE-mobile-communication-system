@@ -1,6 +1,7 @@
 #include <sstream>
 #include <cctype>
 #include <unistd.h>
+#include <tuple>
 
 #include "./app/App.h"
 #include "./CommandHandler/CommandHandler.h"
@@ -8,7 +9,8 @@
 #include "../../COMMON/utils.h"
 #include "../COMMON/parserUtils.h"
 
-std::optional<std::pair<AppConfig, LocationPoint3D>> loadConfiguration(int argc, char** argv)
+std::optional<std::tuple<AppConfig, LocationPoint3D, std::map<size_t, AddressBookEntry>>>
+                                                    loadConfiguration(int argc, char** argv)
 {
     Logger::info("Loading parameters from CLI");
     std::string configPath = "";
@@ -37,7 +39,16 @@ std::optional<std::pair<AppConfig, LocationPoint3D>> loadConfiguration(int argc,
         return std::nullopt;
     }
 
-    return std::make_pair(appConfig.value(), params.value().initialLocation.value());
+    std::map<size_t, AddressBookEntry> addressBook;
+    if (params.value().addressBookPath.length())
+    {
+        if (!parseAddressBook(params.value().addressBookPath, appConfig.value().imsi, addressBook))
+        {
+            return std::nullopt;
+        }
+    }
+
+    return std::make_tuple(appConfig.value(), params.value().initialLocation.value(), addressBook);
 }
 
 int main(int argc, char** argv)
@@ -50,11 +61,11 @@ int main(int argc, char** argv)
     {
         return 1;
     }
-    const auto& [appConfig, initialLocation] = resultConfiguration.value();
+    const auto& [appConfig, initialLocation, addressBook] = resultConfiguration.value();
 
     AppState initialState{ initialLocation, false, Protocol::JSON, std::nullopt };
 
-    App app(appConfig, initialState);
+    App app(appConfig, initialState, addressBook);
     CommandHandler menu(app);
     menu.process();
 

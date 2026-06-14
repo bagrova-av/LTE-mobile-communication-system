@@ -1,6 +1,7 @@
 #include "parserUtils.h"
 #include "utils.h"
 #include "validationUtils.h"
+#include "constants.h"
 
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -204,6 +205,13 @@ std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& config
                 return std::nullopt;
             }
         }
+        else if (arg == "-b" || arg == "--book")
+        {
+            if (!handleConfigPathArgument(argc, argv, i, arg, appConfig.addressBookPath))
+            {
+                return std::nullopt;
+            }
+        }
         else if (arg == "-n" || arg == "--nodes")
         {
             if (!handleStringArgument(argc, argv, i, arg, appConfig.nodes))
@@ -215,7 +223,8 @@ std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& config
         {
             Logger::error("Error: unknown argument (" + arg + "). "
                           "When launching the application, the following flags are allowed: "
-                          "-a/--ip, -p/--port, -e/--imei, -i/--imsi, -m/--msisdn, -l/--loc, -k/--config, -n/--nodes");
+                          "-a/--ip, -p/--port, -e/--imei, -i/--imsi, -m/--msisdn, -l/--loc, "
+                          "-k/--config, -b/--book, -n/--nodes");
             return std::nullopt;
         }
     }
@@ -282,6 +291,15 @@ bool parseAppJSON(const std::string& configPath, StartupParams& appConfig)
             {
                 return false;
             }
+        }
+        if (appConfig.addressBookPath.length() == 0 && data.contains("address_book_path"))
+        {
+            std::string tempAddressBookPath = data["address_book_path"].get<std::string>();
+            if (!checkCorrectNameFile(tempAddressBookPath, ".json"))
+            {
+                return false;
+            }
+            appConfig.addressBookPath = tempAddressBookPath;
         }
     }
     catch (const json::exception& ex)
@@ -520,6 +538,54 @@ bool parseBaseStationsJSON(const std::string& configPath, std::vector<BaseStatio
     catch(const std::exception& ex)
     {
         Logger::error(std::format("Error: Failed to process JSON file with baseStations config.\nDetails: {}",
+                                    ex.what()));
+        return false;
+    }
+
+    configFile.close();
+    return true;
+}
+
+bool parseAddressBook(const std::string& configPath, const IMSI& myImsi,
+                      std::map<size_t, AddressBookEntry>& addressBook)
+{
+    std::ifstream configFile(configPath);
+    if (!configFile.is_open())
+    {
+        Logger::error("Error: could not open address book file: " + configPath);
+        return false;
+    }
+
+    size_t id = 1;
+    json data;
+    try
+    {
+        configFile >> data;
+        for (const auto& item : data)
+        {
+            if (!item.contains("imsi") || !validateIMSI(item["imsi"]))
+            {
+                return false;
+            }
+            if (item["imsi"].get<IMSI>() == myImsi)
+            {
+                continue;
+            }
+
+            AddressBookEntry entry;
+            entry.msisdn = item["msisdn"].get<MSISDN>();
+            addressBook.insert({id, entry});
+            id++;
+
+            if (id > MAX_RECORDS_IN_ADDRESS_BOOK)
+            {
+                break;
+            }
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        Logger::error(std::format("Error: Failed to process JSON file with adress book.\nDetails: {}",
                                     ex.what()));
         return false;
     }

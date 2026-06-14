@@ -6,6 +6,9 @@
 #include "CommandMove.h"
 #include "CommandProtocol.h"
 #include "CommandExit.h"
+#include "CommandSms.h"
+#include "CommandSentSms.h"
+#include "CommandReceivedSms.h"
 
 #include <iostream>
 #include <sstream>
@@ -17,6 +20,9 @@ CommandHandler::CommandHandler(App& app) :
     commands.emplace("move", std::make_unique<CommandMove>(app) );
     commands.emplace("protocol", std::make_unique<CommandProtocol>(app) );
     commands.emplace("exit", std::make_unique<CommandExit>() );
+    commands.emplace("sms", std::make_unique<CommandSms>(app) );
+    commands.emplace("sms-sent", std::make_unique<CommandSentSms>(app) );
+    commands.emplace("sms-received", std::make_unique<CommandReceivedSms>(app) );
 }
 
 void CommandHandler::printMenuHeader() const
@@ -42,7 +48,25 @@ void CommandHandler::printMenuHeader() const
                 << "   MOVE <newX> - change only the 'x' coordinate\n"
                 << "   MOVE <newX> <newY> - change the 'x', 'y' coordinates\n"
                 << "   MOVE <newX> <newY> <newZ> - change the 'x', 'y', 'z' coordinates\n"
-                << "PROTOCOL <type> - set data transfer format (<type> can be: binary/json)\n\n";
+                << "PROTOCOL <type> - set data transfer format (<type> can be: binary/json)\n"
+                << "SMS <receiverMSISDN> <text> - send a message to the recipient with receiverMSISDN\n"
+                << "SMS-SENT - view the list of outgoing messages with their status\n"
+                << "SMS-RECEIVED - view the list of incoming messages\n\n";
+}
+
+void CommandHandler::printAddressBook() const
+{
+    std::map<size_t, AddressBookEntry> addressBook = app.getAddressBook();
+    if (addressBook.empty())
+    {
+        return;
+    }
+
+    std::cout << "\n===== Address Book (Speed Dial) =====" << '\n';
+    for (const auto& [id, entry] : addressBook)
+    {
+        std::cout << "[" << id << "] MSISDN: " << entry.msisdn << '\n';
+    }
 }
 
 void CommandHandler::process()
@@ -61,6 +85,7 @@ void CommandHandler::process()
     {
         app.processResponses();
 
+        printAddressBook();
         printMenuHeader();
         std::cout << "Please, enter the command: ";
 

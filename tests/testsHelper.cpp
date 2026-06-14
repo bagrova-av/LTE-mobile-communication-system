@@ -16,7 +16,7 @@ App createTestApp()
         std::nullopt
     };
     
-    return App(appConfig, appState); 
+    return App(appConfig, appState, createTestAddressBook());
 }
 
 std::vector<char*> createArgv(const std::vector<std::string>& args)
@@ -29,4 +29,16 @@ std::vector<char*> createArgv(const std::vector<std::string>& args)
     }
     argv.push_back(nullptr);
     return argv;
+}
+
+std::map<size_t, AddressBookEntry> createTestAddressBook()
+{
+    std::map<size_t, AddressBookEntry> addressBook;
+
+    addressBook.insert({1, AddressBookEntry{"89991112233"}});
+    addressBook.insert({2, AddressBookEntry{"89993334455"}});
+    addressBook.insert({3, AddressBookEntry{"89995556677"}});
+    addressBook.insert({4, AddressBookEntry{"89997778899"}});
+
+    return addressBook;
 }

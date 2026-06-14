@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <format>
+#include <map>
 
 #include "../APP/app/StartupParams.h"
 #include "../APP/app/AppParams.h"
@@ -13,6 +14,7 @@
 #include "../CORE/entitiesConfigs/SubscriberRecord.h"
 #include "../CORE/entitiesConfigs/MmeConfig.h"
 #include "../CORE/entitiesConfigs/SmsCenterConfig.h"
+#include "../CORE/entitiesConfigs/AddressBookEntry.h"
 
 std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& configPath);
 
@@ -51,5 +53,8 @@ bool parseBaseStationsJSON(const std::string& configPath, std::vector<BaseStatio
 bool parseMmeJSON(const std::string& configPath, std::vector<MmeConfig>& mmes);
 
 bool parseSmsCenterJSON(const std::string& configPath, SmsCenterConfig& smsCenterConfig);
+
+bool parseAddressBook(const std::string& configPath, const IMSI& myImsi,
+                      std::map<size_t, AddressBookEntry>& addressBook);
 
 #endif

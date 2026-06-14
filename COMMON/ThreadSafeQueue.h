@@ -87,6 +87,11 @@ public:
         }
         queueChanged.notify_all();
     }
+
+    bool isClosed() const
+    {
+        return isShutdown;
+    }
 };
 
 #endif

@@ -171,6 +171,10 @@ std::optional<BytesBuffer> ServerSocket::receiveAllData(int clientFileDescriptor
         }
         if (received == -1)
         {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) // recv() timed out
+            {
+                return std::nullopt;
+            }
             Logger::error("ServerSocket: receiving data from the client failed ("
                           + std::string(std::strerror(errno)) + ")");
             return std::nullopt;

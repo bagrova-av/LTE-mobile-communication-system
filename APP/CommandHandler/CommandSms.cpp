@@ -14,7 +14,33 @@ bool CommandSms::execute(const std::vector<std::string>& args)
         return false;
     }
 
-    MSISDN receiverMsisdn = args[0];
+    std::string target = args[0];
+    MSISDN receiverMsisdn;
+    if (target[0] == '@')
+    {
+        auto shortcut = convertFromString<size_t>(target.substr(1));
+        if (!shortcut.has_value())
+        {
+            Logger::error("Validation error: speed dial entry @ contains non-numeric characters");
+            return false;
+        }
+
+        auto entry = app.getAddressBookEntryByShortcut(shortcut.value());
+        if (!entry.has_value())
+        {
+            Logger::error("Error: speed dial entry @" + std::to_string(shortcut.value())
+                        + " not found");
+            return false;
+        }
+        receiverMsisdn = entry.value().msisdn;
+        Logger::info("Using speed dial @" + std::to_string(shortcut.value())
+                    + " -> " + receiverMsisdn);
+    }
+    else
+    {
+        receiverMsisdn = args[0];
+    }
+
     if (!validateMSISDN(receiverMsisdn))
     {
         return false;

@@ -134,6 +134,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK) // recv() timed out
             {
+                errno = 0;
                 sendBufferedMessages(clientFileDescriptor, receivedProtocol, currentTmsi);
                 continue;
             }
@@ -240,7 +241,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
                                 + " is " + std::to_string(distance));
 
-                    sendDistanceResponce(clientFileDescriptor, receivedProtocol, distance);
+                    sendDistanceResponse(clientFileDescriptor, receivedProtocol, distance);
                 }
                 else
                 {
@@ -435,7 +436,7 @@ void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, co
                                               data);
 }
 
-void ServerApp::sendDistanceResponce(int clientFileDescriptor, Protocol protocol, CoordinatesType distance)
+void ServerApp::sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance)
 {
     DistanceResponse distanceResponse{distance};
     auto serializer = SerializerFactory::createSerializer(protocol);

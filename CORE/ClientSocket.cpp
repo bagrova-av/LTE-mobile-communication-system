@@ -123,6 +123,10 @@ std::optional<BytesBuffer> ClientSocket::receiveAllData(size_t bytesCount) const
         }
         if (received == -1)
         {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) // recv() timed out
+            {
+                return std::nullopt;
+            }
             Logger::error("ClientSocket: receiving data failed ("
                           + std::string(std::strerror(errno)) + ")");
             return std::nullopt;

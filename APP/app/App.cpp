@@ -3,13 +3,15 @@
 #include "../../COMMON/logging/Logger.h"
 #include "../../CORE/network/SerializerFactory.h"
 #include "../../COMMON/constants.h"
+#include "../../COMMON/parserUtils.h"
 
 #include <iostream>
 
-App::App(const AppConfig& appConfig, const AppState& initialState) :
+App::App(const AppConfig& appConfig, const AppState& initialState,
+        const std::map<size_t, AddressBookEntry>& addressBook) :
     config(appConfig),
     state(initialState),
-    nextLocalSmsId(1)
+    addressBook(addressBook)
 {
     Logger::info("Application initialized successfully");
     networkThread = std::thread(&App::networkThreadWorker, this);
@@ -24,6 +26,16 @@ App::~App()
         networkThread.join();
     }
     Logger::info("Application shutdown complete");
+}
+
+std::optional<AddressBookEntry> App::getAddressBookEntryByShortcut(size_t shortcut) const
+{
+    auto it = addressBook.find(shortcut);
+    if (it == addressBook.end())
+    {
+        return std::nullopt;
+    }
+    return it->second;
 }
 
 void App::pushTaskToQueue(TaskType type, Protocol protocol, TaskData data)
@@ -398,6 +410,11 @@ void App::networkThreadWorker()
         auto networkTask = networkTasks.tryPop();
         if (!networkTask.has_value())
         {
+            if (networkTasks.isClosed())
+            {
+                break;
+            }
+
             if (clientSocket.isOpen())
             {
                 std::optional<ReceivedDataPacket> incomingPacket;
@@ -406,7 +423,8 @@ void App::networkThreadWorker()
                     handleIncomingServerMessage(incomingPacket.value());
                 }
             }
-            break;
+            //std::this_thread::sleep_for(std::chrono::milliseconds(10)); //TODO
+            continue;
         }
 
         std::unique_ptr<SerializerInterface> serializer = SerializerFactory::createSerializer(

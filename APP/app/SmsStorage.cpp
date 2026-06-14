@@ -6,18 +6,17 @@ bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus new
 {
     std::lock_guard<std::mutex> lock(smsMutex);
 
-    auto it = std::find_if(sentSmsRecords.begin(), sentSmsRecords.end(),
-                            [globalId](const SentSmsRecord& smsRecord)
-                            {
-                                return smsRecord.globalId == globalId;
-                            }
+    SentSmsRecord* smsRecord = findSentSmsRecord([globalId](const auto& record)
+                                                {
+                                                    return record.globalId == globalId;
+                                                }
     );
 
-    if (it == sentSmsRecords.end())
+    if (!smsRecord)
     {
         return false;
     }
-    it->status = newStatus;
+    smsRecord->status = newStatus;
     return true;
 }
 
@@ -25,18 +24,17 @@ bool SmsStorage::updateSmsStatusByTempId(SmsId tempId, SmsDeliveryStatus newStat
 {
     std::lock_guard<std::mutex> lock(smsMutex);
 
-    auto it = std::find_if(sentSmsRecords.begin(), sentSmsRecords.end(),
-                            [tempId](const SentSmsRecord& smsRecord)
-                            {
-                                return smsRecord.tempId == tempId;
-                            }
+    SentSmsRecord* smsRecord = findSentSmsRecord([tempId](const auto& record)
+                                                {
+                                                    return record.tempId == tempId;
+                                                }
     );
 
-    if (it == sentSmsRecords.end())
+    if (!smsRecord)
     {
         return false;
     }
-    it->status = newStatus;
+    smsRecord->status = newStatus;
     return true;
 }
 

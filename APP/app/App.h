@@ -13,6 +13,8 @@
 #include "../../CORE/network/SerializerInterface.h"
 #include "NetworkTask.h"
 #include "SmsStorage.h"
+#include "map"
+#include "../../CORE/entitiesConfigs/AddressBookEntry.h"
 
 class App
 {
@@ -26,6 +28,7 @@ private:
     std::thread networkThread;
     SmsStorage smsStorage;
     std::atomic<SmsId> nextLocalSmsId;
+    std::map<size_t, AddressBookEntry> addressBook;
 
     void networkThreadWorker();
     void handleAttachTask(uint8_t protocolHeader,
@@ -42,7 +45,8 @@ private:
     void pushTaskToQueue(TaskType type, Protocol protocol, TaskData data);
 
 public:
-    App(const AppConfig& appConfig, const AppState& initialState);
+    App(const AppConfig& appConfig, const AppState& initialState,
+        const std::map<size_t, AddressBookEntry>& addressBook);
     ~App();
 
     void setStatus(bool status);
@@ -61,6 +65,8 @@ public:
     const LocationPoint3D& getLocation() const;
     bool getStatus() const;
     Protocol getProtocol() const;
+    std::optional<AddressBookEntry> getAddressBookEntryByShortcut(size_t shortcut) const;
+    const std::map<size_t, AddressBookEntry>& getAddressBook() const;
 
     void addSentSmsRecord(const SentSmsRecord& smsRecord);
     void addReceivedSmsRecord(const ReceivedSmsRecord& smsRecord);
@@ -150,6 +156,11 @@ inline Protocol App::getProtocol() const
 {
     std::lock_guard<std::mutex> lock(stateMutex);
     return state.protocol;
+}
+
+inline const std::map<size_t, AddressBookEntry>& App::getAddressBook() const
+{
+    return addressBook;
 }
 
 inline void App::addSentSmsRecord(const SentSmsRecord& smsRecord)
