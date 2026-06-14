@@ -4,9 +4,6 @@
 
 #include "CommandInterface.h"
 #include "../app/App.h"
-#include "../../CORE/types.h"
-#include "../../COMMON/utils.h"
-#include "../../COMMON/logging/Logger.h"
 
 class CommandMove : public CommandInterface
 {

@@ -3,22 +3,16 @@
 #define SMS_STORAGE_H
 
 #include <mutex>
+#include <optional>
 
 #include "../../CORE/types.h"
-
-enum class SmsDeliveryStatus
-{
-    SENDING,
-    SENT_TO_SERVER,
-    DELIVERED,
-    FAILED
-};
+#include "../../CORE/network/NetworkMessages.h"
 
 struct SentSmsRecord
 {
     SmsId tempId;
-    SmsId globalId;
-    MSISDN receiver;
+    std::optional<SmsId> globalId;
+    MSISDN receiverMsisdn;
     std::string text;
     SmsDeliveryStatus status;
 };
@@ -38,8 +32,13 @@ private:
 
 public:
     void addReceivedSms(const ReceivedSmsRecord& smsRecord);
+    void addSentSms(const SentSmsRecord& smsRecord);
+    bool updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus newStatus);
+    bool updateSmsStatusByTempId(SmsId tempId, SmsDeliveryStatus newStatus);
+    bool linkSmsIds(SmsId tempId, SmsId globalId);
+
     std::vector<ReceivedSmsRecord> getReceivedSmsCopy() const;
-    void updateSmsStatus(SmsId globalId, SmsDeliveryStatus newStatus);
+    std::vector<SentSmsRecord> getSentSmsCopy() const;
 };
 
 inline void SmsStorage::addReceivedSms(const ReceivedSmsRecord& smsRecord)
@@ -48,10 +47,22 @@ inline void SmsStorage::addReceivedSms(const ReceivedSmsRecord& smsRecord)
     receivedSmsRecords.push_back(smsRecord);
 }
 
+inline void SmsStorage::addSentSms(const SentSmsRecord& smsRecord)
+{
+    std::lock_guard<std::mutex> lock(smsMutex);
+    sentSmsRecords.push_back(smsRecord);
+}
+
 inline std::vector<ReceivedSmsRecord> SmsStorage::getReceivedSmsCopy() const
 {
     std::lock_guard<std::mutex> lock(smsMutex);
     return receivedSmsRecords;
+}
+
+inline std::vector<SentSmsRecord> SmsStorage::getSentSmsCopy() const
+{
+    std::lock_guard<std::mutex> lock(smsMutex);
+    return sentSmsRecords;
 }
 
 #endif

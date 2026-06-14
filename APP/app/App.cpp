@@ -8,7 +8,8 @@
 
 App::App(const AppConfig& appConfig, const AppState& initialState) :
     config(appConfig),
-    state(initialState)
+    state(initialState),
+    nextLocalSmsId(1)
 {
     Logger::info("Application initialized successfully");
     networkThread = std::thread(&App::networkThreadWorker, this);
@@ -33,19 +34,24 @@ void App::pushTaskToQueue(TaskType type, Protocol protocol, TaskData data)
     }
 }
 
-void App::sendLocationToServerAsync(const LocationPoint3D& location, Protocol protocol)
+void App::sendLocationToServerAsync(const LocationPoint3D& location)
 {
-    pushTaskToQueue(TaskType::LOCATION, protocol, LocationTaskData{location});
+    pushTaskToQueue(TaskType::LOCATION, state.protocol, LocationTaskData{location});
 }
 
-void App::sendAttachTaskToServerAsync(Protocol protocol)
+void App::sendAttachTaskToServerAsync()
 {
-    pushTaskToQueue(TaskType::ATTACH, protocol, EmptyTaskData{});
+    pushTaskToQueue(TaskType::ATTACH, state.protocol, EmptyTaskData{});
 }
 
-void App::sendDetachTaskToServerAsync(Protocol protocol)
+void App::sendDetachTaskToServerAsync()
 {
-    pushTaskToQueue(TaskType::DETACH, protocol, EmptyTaskData{});
+    pushTaskToQueue(TaskType::DETACH, state.protocol, EmptyTaskData{});
+}
+
+void App::sendSmsTaskToServerAsync(const SmsTaskData& smsTaskData)
+{
+    pushTaskToQueue(TaskType::SEND_SMS, state.protocol, smsTaskData);
 }
 
 void App::handleAttachTask(uint8_t protocolHeader,
@@ -218,7 +224,8 @@ void App::handleLocationTask(uint8_t protocolHeader,
 
     if (distanceResponse.value().packetType == PacketType::DISTANCE)
     {
-        auto message = serializer.deserialize(PacketType::DISTANCE, distanceResponse.value().data);
+        auto message = serializer.deserialize(PacketType::DISTANCE,
+                                              distanceResponse.value().data);
         if (message.has_value())
         {
             CoordinatesType distance = std::get<DistanceResponse>(message.value()).distance;
@@ -236,7 +243,8 @@ void App::handleLocationTask(uint8_t protocolHeader,
     }
     else if (distanceResponse.value().packetType == PacketType::ERROR_MESSAGE)
     {
-        auto message = serializer.deserialize(PacketType::ERROR_MESSAGE, distanceResponse.value().data);
+        auto message = serializer.deserialize(PacketType::ERROR_MESSAGE,
+                                              distanceResponse.value().data);
         if (message.has_value())
         {
             std::string errorText = std::get<ErrorResponse>(message.value()).message;
@@ -256,6 +264,35 @@ void App::handleLocationTask(uint8_t protocolHeader,
     }
 }
 
+void App::handleSendSmsTask(uint8_t protocolHeader,
+                            const SerializerInterface& serializer,
+                            const NetworkTask& networkTask)
+{
+    const SmsTaskData& smsData = std::get<SmsTaskData>(networkTask.data);
+
+    M_TMSI m_tmsi;
+    {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        if (!state.m_tmsi.has_value())
+        {
+            Logger::error("Failed to send SMS: client is not registered (no TMSI)");
+            smsStorage.updateSmsStatusByTempId(smsData.tempId, SmsDeliveryStatus::FAILED);
+            return;
+        }
+        m_tmsi = state.m_tmsi.value();
+    }
+
+    SmsSendRequest request{m_tmsi, smsData.receiverMsisdn, smsData.tempId, smsData.text};
+    if (!PacketTransporter::sendDataPacketRequest(clientSocket,
+                                                  protocolHeader,
+                                                  PacketType::SMS_SEND,
+                                                  serializer.serialize(request)))
+    {
+        Logger::error("Failed to send SMS to the server");
+        smsStorage.updateSmsStatusByTempId(smsData.tempId, SmsDeliveryStatus::FAILED);
+    }
+}
+
 void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
 {
     Protocol protocol;
@@ -269,19 +306,39 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
 
     switch (dataPacket.packetType)
     {
+        case PacketType::SMS_SUBMIT_ACCEPT :
+        {
+            const auto& message = serializer->deserialize(PacketType::SMS_SUBMIT_ACCEPT,
+                                                          dataPacket.data);
+            if (message.has_value())
+            {
+                const auto& submitAccept = std::get<SmsSubmitAccept>(message.value());
+                if (!linkSmsIds(submitAccept.tempId, submitAccept.globalId))
+                {
+                    Logger::error("Failed to associate the local ID for the message with its global value");
+                }
+            }
+            else
+            {
+                Logger::error("Failed to deserialize SMS_SUBMIT_ACCEPT packet");
+                responsesQueue.push("Received deformed network data packet");
+            }
+            break;
+        }
         case PacketType::SMS_RECEIVE :
         {
-            const auto& message = serializer->deserialize(PacketType::SMS_RECEIVE, dataPacket.data);
+            const auto& message = serializer->deserialize(PacketType::SMS_RECEIVE,
+                                                          dataPacket.data);
             if (message.has_value())
             {
                 const auto& sms = std::get<SmsIncomingMessage>(message.value());
-                //saveToInbox(message.value());
-
+                
+                addReceivedSmsRecord(ReceivedSmsRecord{sms.senderMsisdn, sms.text});
                 responsesQueue.push("New SMS from " + sms.senderMsisdn + ":\n" + sms.text);
 
                 SmsDeliveryAcknowledge smsDeliveryAcknowledge{m_tmsi.value(),
                                                               sms.smsId,
-                                                              SUCCESS_STATUS};
+                                                              SmsDeliveryStatus::DELIVERED}; //TODO
                 PacketTransporter::sendDataPacketRequest(clientSocket,
                                                         static_cast<uint8_t>(protocol),
                                                         PacketType::SMS_DELIVERY_ACKNOWLEDGE,
@@ -296,26 +353,14 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
         }
         case PacketType::SMS_STATUS :
         {
-            const auto& message = serializer->deserialize(PacketType::SMS_STATUS, dataPacket.data);
+            const auto& message = serializer->deserialize(PacketType::SMS_STATUS,
+                                                          dataPacket.data);
             if (message.has_value())
             {
                 const auto& report = std::get<SmsStatusReport>(message.value());
-
-                SmsDeliveryStatus status;
-                std::string statusStr;
-                if (report.status == SUCCESS_STATUS)
-                {
-                    status = SmsDeliveryStatus::DELIVERED;
-                    statusStr = "DELIVERED";
-                }
-                else
-                {
-                    status = SmsDeliveryStatus::FAILED;
-                    statusStr = "FAILED";
-                }
-                smsStorage.updateSmsStatus(report.smsId, status);
+                smsStorage.updateSmsStatusByGlobalId(report.smsId, report.status);
                 responsesQueue.push("SMS with ID " + std::to_string(report.smsId)
-                                    + " is " + statusStr);
+                                    + " is " + convertSmsDeliveryStatusToString(report.status));
                 break;
             }
             else
@@ -327,7 +372,8 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
         }
         case PacketType::ERROR_MESSAGE :
         {
-            const auto& message = serializer->deserialize(PacketType::ERROR_MESSAGE, dataPacket.data);
+            const auto& message = serializer->deserialize(PacketType::ERROR_MESSAGE,
+                                                         dataPacket.data);
             if (message.has_value())
             {
                 responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
@@ -383,6 +429,19 @@ void App::networkThreadWorker()
                 if (clientSocket.isOpen())
                 {
                     handleLocationTask(protocolHeader, *serializer, networkTask.value());
+                }
+                else
+                {
+                    Logger::warning("Network operation failed: no active connection to the network. "
+                                    "Please, use 'ACTIVE true' first");
+                }
+                break;
+            }
+            case TaskType::SEND_SMS : 
+            {
+                if (clientSocket.isOpen())
+                {
+                    handleSendSmsTask(protocolHeader, *serializer, networkTask.value());
                 }
                 else
                 {

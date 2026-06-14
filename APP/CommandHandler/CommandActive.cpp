@@ -1,4 +1,5 @@
 #include "CommandActive.h"
+#include "../../COMMON/logging/Logger.h"
 
 bool CommandActive::processValue(const std::string& value)
 {
@@ -29,12 +30,12 @@ bool CommandActive::processValue(const std::string& value)
         Logger::info("Application status successfully changed to " + stateStr);
         if (newState)
         {
-            app.sendAttachTaskToServerAsync(app.getProtocol());
+            app.sendAttachTaskToServerAsync();
             Logger::info("CommandActive: initiated attach procedure");
         }
         else
         {
-            app.sendDetachTaskToServerAsync(app.getProtocol());
+            app.sendDetachTaskToServerAsync();
             Logger::info("CommandActive: initiated detach procedure");
         }
     }

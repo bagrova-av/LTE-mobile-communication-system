@@ -55,6 +55,15 @@ struct DistanceResponse
     CoordinatesType distance;
 };
 
+enum class SmsDeliveryStatus : uint8_t
+{
+    SENDING,
+    SENT_TO_SERVER,
+    DELIVERED,
+    FAILED
+};
+std::string convertSmsDeliveryStatusToString(SmsDeliveryStatus status);
+
 struct SmsSendRequest
 {
     M_TMSI senderTmsi;
@@ -66,7 +75,7 @@ struct SmsSendRequest
 struct SmsSubmitAccept
 {
     SmsId tempId;
-    SmsId globalSmsId;
+    SmsId globalId;
 };
 
 struct SmsIncomingMessage
@@ -81,14 +90,14 @@ struct SmsDeliveryAcknowledge
 {
     M_TMSI receiverTmsi;
     SmsId smsId;
-    uint8_t status;
+    SmsDeliveryStatus status;
 };
 
 struct SmsStatusReport
 {
     M_TMSI senderTmsi;
     SmsId smsId;
-    uint8_t status;
+    SmsDeliveryStatus status;
 };
 
 using NetworkMessage = std::variant<AttachRequest,

@@ -71,11 +71,11 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                     }
                     else if constexpr (std::is_same_v<T, SmsDeliveryAcknowledge>)
                     {
-                        totalSize = sizeof(M_TMSI) + sizeof(SmsId) + sizeof(uint8_t);
+                        totalSize = sizeof(M_TMSI) + sizeof(SmsId) + sizeof(SmsDeliveryStatus);
                     }
                     else if constexpr (std::is_same_v<T, SmsStatusReport>)
                     {
-                        totalSize = sizeof(M_TMSI) + sizeof(SmsId) + sizeof(uint8_t);
+                        totalSize = sizeof(M_TMSI) + sizeof(SmsId) + sizeof(SmsDeliveryStatus);
                     }
                     else if constexpr (std::is_same_v<T, ErrorResponse>)
                     {
@@ -143,7 +143,7 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                     else if constexpr (std::is_same_v<T, SmsSubmitAccept>)
                     {
                         writeValue(dataNetworkFormat, arg.tempId, offset);
-                        writeValue(dataNetworkFormat, arg.globalSmsId, offset);
+                        writeValue(dataNetworkFormat, arg.globalId, offset);
                     }
                     else if constexpr (std::is_same_v<T, SmsIncomingMessage>)
                     {
@@ -354,13 +354,13 @@ std::optional<NetworkMessage> BinarySerializer::deserialize(PacketType packetTyp
                 return std::nullopt;
             }
 
-            std::optional<SmsId> globalSmsId = readValue<SmsId>(dataNetworkFormat, offset);
-            if (!globalSmsId.has_value())
+            std::optional<SmsId> globalId = readValue<SmsId>(dataNetworkFormat, offset);
+            if (!globalId.has_value())
             {
                 return std::nullopt;
             }
 
-            return SmsSubmitAccept{ tempId.value(), globalSmsId.value() };
+            return SmsSubmitAccept{ tempId.value(), globalId.value() };
         }
         case PacketType::SMS_RECEIVE :
         {
@@ -415,7 +415,7 @@ std::optional<NetworkMessage> BinarySerializer::deserialize(PacketType packetTyp
 
             return SmsDeliveryAcknowledge{ receiverTmsi.value(),
                                             smsId.value(),
-                                            status.value() };
+                                            static_cast<SmsDeliveryStatus>(status.value()) };
         }
         case PacketType::SMS_STATUS :
         {
@@ -439,7 +439,7 @@ std::optional<NetworkMessage> BinarySerializer::deserialize(PacketType packetTyp
 
             return SmsStatusReport{ senderTmsi.value(),
                                     smsId.value(),
-                                    status.value() };
+                                    static_cast<SmsDeliveryStatus>(status.value()) };
         }
         case PacketType::ERROR_MESSAGE :
         {

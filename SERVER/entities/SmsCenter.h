@@ -5,6 +5,7 @@
 #include <chrono>
 #include <mutex>
 #include <unordered_map>
+#include <atomic>
 
 #include "../../CORE/types.h"
 #include "../../CORE/entitiesConfigs/SmsCenterConfig.h"
@@ -32,7 +33,7 @@ class SmsCenter
 private:
     SmsCenterConfig config;
     std::unordered_map<SmsId, SmsRecord> smsStorage;
-    SmsId nextSmsId;
+    std::atomic<SmsId> nextSmsId;
     std::mutex smscMutex;
 
     SmsId storeOneMessageWithoutMutex(M_TMSI senderTmsi, const MSISDN& senderMsisdn,

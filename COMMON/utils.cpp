@@ -24,6 +24,16 @@ std::string currentDateTimeToString()
     return std::format("{:%d.%m.%Y %H:%M:%S}", timeLocal);
 }
 
+bool isBlankString(const std::string& str)
+{
+    return std::all_of(str.begin(), str.end(),
+                        [](unsigned char symbol)
+                        {
+                            return std::isspace(symbol);
+                        }
+    );
+}
+
 void initLogger(const std::string& executablePath, const std::string& fileName)
 {
     std::filesystem::path execPath = executablePath;

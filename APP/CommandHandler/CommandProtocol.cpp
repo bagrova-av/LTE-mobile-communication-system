@@ -1,4 +1,5 @@
 #include "CommandProtocol.h"
+#include "../../COMMON/logging/Logger.h"
 
 bool CommandProtocol::processValue(const std::string& value)
 {

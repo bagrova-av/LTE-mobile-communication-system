@@ -26,6 +26,7 @@ set(CORE_SOURCE_LIST
     CORE/PacketTransporter.cpp
     CORE/network/BinarySerializer.cpp
     CORE/network/JsonSerializer.cpp
+    CORE/network/NetworkMessages.cpp
     CORE/entitiesConfigs/SubscriberRecord.cpp
     COMMON/utils.cpp
     COMMON/networkUtils.cpp
@@ -56,7 +57,10 @@ add_library(${PROJECT_NAME}ClientLib STATIC
     APP/CommandHandler/CommandActive.cpp
     APP/CommandHandler/CommandExit.cpp
     APP/CommandHandler/CommandMove.cpp
-    APP/CommandHandler/CommandProtocol.cpp    
+    APP/CommandHandler/CommandProtocol.cpp
+    APP/CommandHandler/CommandReceivedSms.cpp
+    APP/CommandHandler/CommandSentSms.cpp
+    APP/CommandHandler/CommandSms.cpp
 )
 target_include_directories(${PROJECT_NAME}ClientLib PUBLIC 
     APP/

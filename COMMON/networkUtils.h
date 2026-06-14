@@ -23,6 +23,10 @@ concept NetworkSerializable = std::same_as<T, uint8_t> ||
                               std::same_as<T, double>;
 
 template<typename T>
+concept NetworkSerializableEnum = std::is_enum_v<T> &&
+                                  NetworkSerializable<std::underlying_type_t<T>>;
+
+template<typename T>
 inline constexpr bool alwaysFalse = false;
 
 template<typename T>
@@ -114,6 +118,13 @@ void writeValue(BytesBuffer& buffer, T value, size_t& offset)
     size_t networkValueSize = sizeof(networkValue);
     std::memcpy(buffer.data() + offset, &networkValue, networkValueSize);
     offset += networkValueSize;
+}
+
+template<NetworkSerializableEnum T>
+void writeValue(BytesBuffer& buffer, T value, size_t& offset)
+{
+    using Underlying = std::underlying_type_t<T>;
+    writeValue(buffer, static_cast<Underlying>(value), offset);
 }
 
 void writeString(BytesBuffer& buffer, const std::string& str, size_t& offset);

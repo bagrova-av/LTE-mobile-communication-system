@@ -1,4 +1,6 @@
 #include "SingleArgCommand.h"
+#include "../../COMMON/utils.h"
+#include "../../COMMON/logging/Logger.h"
 
 bool SingleArgCommand::execute(const std::vector<std::string>& args)
 {

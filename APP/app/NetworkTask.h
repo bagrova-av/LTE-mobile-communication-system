@@ -20,8 +20,10 @@ struct LocationTaskData
     LocationPoint3D location;
 };
 
-struct SmsTaskData //TODO
+struct SmsTaskData
 {
+    MSISDN receiverMsisdn;
+    SmsId tempId;
     std::string text;
 };
 
