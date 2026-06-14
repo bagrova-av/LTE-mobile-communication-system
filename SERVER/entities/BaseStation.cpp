@@ -30,7 +30,7 @@ bool BaseStation::registerClient(M_TMSI m_tmsi, int clientFileDescriptor)
     return true;
 }
 
-ClientContext* BaseStation::findClientContext(M_TMSI m_tmsi)
+ClientContext* BaseStation::findClientContextWithoutMutex(M_TMSI m_tmsi)
 {
     auto it = connectedClients.find(m_tmsi);
     if (it == connectedClients.end())
@@ -56,30 +56,30 @@ float BaseStation::calculateSignalStrength(const LocationPoint3D& clientLocation
     return 1.0f - (distance / config.coverageRadius);
 }
 
-bool BaseStation::pushMessageToBuffer(M_TMSI m_tmsi, const BytesBuffer& data)
+bool BaseStation::pushMessageToBuffer(M_TMSI m_tmsi, const BufferedPacket& data)
 {
     std::lock_guard<std::mutex> lock(bsMutex);
 
-    ClientContext* clientContext = findClientContext(m_tmsi);
+    ClientContext* clientContext = findClientContextWithoutMutex(m_tmsi);
     if (!clientContext)
     {
         return false;
     }
 
-    if (hasEnoughSpaceInBuffer(clientContext, data))
+    if (hasEnoughSpaceInBufferWithoutMutex(clientContext, data))
     {
         clientContext->messageBuffer.push(data);
-        clientContext->currentBufferBytesSize += data.size();
+        clientContext->currentBufferBytesSize += getBufferPacketSize(data);
         return true;
     }
     return false;
 }
 
-std::optional<BytesBuffer> BaseStation::popMessageFromBuffer(M_TMSI m_tmsi)
+std::optional<BufferedPacket> BaseStation::popMessageFromBuffer(M_TMSI m_tmsi)
 {
     std::lock_guard<std::mutex> lock(bsMutex);
 
-    ClientContext* clientContext = findClientContext(m_tmsi);
+    ClientContext* clientContext = findClientContextWithoutMutex(m_tmsi);
     if (!clientContext)
     {
         return std::nullopt;
@@ -90,7 +90,7 @@ std::optional<BytesBuffer> BaseStation::popMessageFromBuffer(M_TMSI m_tmsi)
     {
         return std::nullopt;
     }
-    clientContext->currentBufferBytesSize -= data.value().size();
+    clientContext->currentBufferBytesSize -= getBufferPacketSize(data.value());
     return data;
 }
 
@@ -100,11 +100,18 @@ bool BaseStation::sendDeliveryStatusToСlient(M_TMSI m_tmsi)
     return true;
 }
 
-bool BaseStation::hasEnoughSpaceInBuffer(ClientContext* clientContext, const BytesBuffer& data) const
+bool BaseStation::hasEnoughSpaceInBufferWithoutMutex(ClientContext* clientContext,
+                                                    const BufferedPacket& data) const
 {
     if (!clientContext)
     {
         return false;
     }
-    return clientContext->currentBufferBytesSize + data.size() <= config.bufferBytesSizePerConnection;
+    return clientContext->currentBufferBytesSize + getBufferPacketSize(data)
+           <= config.bufferBytesSizePerConnection;
+}
+
+size_t BaseStation::getBufferPacketSize(const BufferedPacket& packet) const
+{
+    return sizeof(packet.packetType) + packet.data.size();
 }

@@ -1,0 +1,59 @@
+#include "SmsStorage.h"
+
+#include <algorithm>
+
+bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus newStatus)
+{
+    std::lock_guard<std::mutex> lock(smsMutex);
+
+    SentSmsRecord* smsRecord = findSentSmsRecord([globalId](const auto& record)
+                                                {
+                                                    return record.globalId == globalId;
+                                                }
+    );
+
+    if (!smsRecord)
+    {
+        return false;
+    }
+    smsRecord->status = newStatus;
+    return true;
+}
+
+bool SmsStorage::updateSmsStatusByTempId(SmsId tempId, SmsDeliveryStatus newStatus)
+{
+    std::lock_guard<std::mutex> lock(smsMutex);
+
+    SentSmsRecord* smsRecord = findSentSmsRecord([tempId](const auto& record)
+                                                {
+                                                    return record.tempId == tempId;
+                                                }
+    );
+
+    if (!smsRecord)
+    {
+        return false;
+    }
+    smsRecord->status = newStatus;
+    return true;
+}
+
+bool SmsStorage::linkSmsIds(SmsId tempId, SmsId globalId)
+{
+    std::lock_guard<std::mutex> lock(smsMutex);
+
+    auto it = std::find_if(sentSmsRecords.begin(), sentSmsRecords.end(),
+                            [tempId](const SentSmsRecord& smsRecord)
+                            {
+                                return smsRecord.tempId == tempId;
+                            }
+    );
+
+    if (it == sentSmsRecords.end())
+    {
+        return false;
+    }
+    it->globalId = globalId;
+    it->status = SmsDeliveryStatus::SENT_TO_SERVER;
+    return true;
+}

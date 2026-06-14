@@ -16,7 +16,7 @@ class ServerApp
 private:
     EpcConfig epcConfig;
     size_t MAX_ACTIVE_CLIENT_CONNECTIONS = 100;
-    const uint16_t listeningPort;
+    const Port listeningPort;
     const LocationPoint3D location;
     std::atomic<bool> isRunning;
     ServerSocket serverSocket;
@@ -27,22 +27,27 @@ private:
     void processSingleClient(int clientFileDescriptor);
 
     void sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId);
-    void sendRrcReject(int clientFileDescriptor, Protocol protocol, std::string reason);
+    void sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason);
     void sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_TMSI m_tmsi);
-    void sendAttachReject(int clientFileDescriptor, Protocol protocol, std::string reason);
-    void sendDistanceResponce(int clientFileDescriptor, Protocol protocol, CoordinatesType distance);
-    void sendErrorResponse(int clientFileDescriptor, Protocol protocol, std::string reason);
+    void sendAttachReject(int clientFileDescriptor, Protocol protocol, const std::string& reason);
+    void sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance);
+    void sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message);
+
+    void sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId);
+
+    void sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
+                              const std::optional<M_TMSI>& currentTmsi);
 
 public:
     ServerApp(uint16_t port, const LocationPoint3D& location, const EpcConfig& epcConfig);
     
     void process();
 
-    uint16_t getPort() const;
+    Port getPort() const;
     const LocationPoint3D& getLocation() const;
 };
 
-inline uint16_t ServerApp::getPort() const
+inline Port ServerApp::getPort() const
 {
     return listeningPort;
 }

@@ -51,6 +51,32 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                     {
                         totalSize = sizeof(CoordinatesType);
                     }
+                    else if constexpr (std::is_same_v<T, SmsSendRequest>)
+                    {
+                        totalSize = sizeof(M_TMSI)
+                                    + sizeof(uint32_t) + arg.receiverMsisdn.length()
+                                    + sizeof(SmsId)
+                                    + sizeof(uint32_t) + arg.text.length();
+                    }
+                    else if constexpr (std::is_same_v<T, SmsSubmitAccept>)
+                    {
+                        totalSize = sizeof(SmsId) + sizeof(SmsId);
+                    }
+                    else if constexpr (std::is_same_v<T, SmsIncomingMessage>)
+                    {
+                        totalSize = sizeof(M_TMSI)
+                                    + sizeof(uint32_t) + arg.senderMsisdn.length()
+                                    + sizeof(SmsId)
+                                    + sizeof(uint32_t) + arg.text.length();
+                    }
+                    else if constexpr (std::is_same_v<T, SmsDeliveryAcknowledge>)
+                    {
+                        totalSize = sizeof(M_TMSI) + sizeof(SmsId) + sizeof(SmsDeliveryStatus);
+                    }
+                    else if constexpr (std::is_same_v<T, SmsStatusReport>)
+                    {
+                        totalSize = sizeof(M_TMSI) + sizeof(SmsId) + sizeof(SmsDeliveryStatus);
+                    }
                     else if constexpr (std::is_same_v<T, ErrorResponse>)
                     {
                         totalSize = sizeof(uint32_t) + arg.message.length();
@@ -106,6 +132,37 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                     else if constexpr (std::is_same_v<T, DistanceResponse>)
                     {
                         writeValue(dataNetworkFormat, arg.distance, offset);
+                    }
+                    else if constexpr (std::is_same_v<T, SmsSendRequest>)
+                    {
+                        writeValue(dataNetworkFormat, arg.senderTmsi, offset);
+                        writeString(dataNetworkFormat, arg.receiverMsisdn, offset);
+                        writeValue(dataNetworkFormat, arg.smsId, offset);
+                        writeString(dataNetworkFormat, arg.text, offset);
+                    }
+                    else if constexpr (std::is_same_v<T, SmsSubmitAccept>)
+                    {
+                        writeValue(dataNetworkFormat, arg.tempId, offset);
+                        writeValue(dataNetworkFormat, arg.globalId, offset);
+                    }
+                    else if constexpr (std::is_same_v<T, SmsIncomingMessage>)
+                    {
+                        writeValue(dataNetworkFormat, arg.receiverTmsi, offset);
+                        writeString(dataNetworkFormat, arg.senderMsisdn, offset);
+                        writeValue(dataNetworkFormat, arg.smsId, offset);
+                        writeString(dataNetworkFormat, arg.text, offset);
+                    }
+                    else if constexpr (std::is_same_v<T, SmsDeliveryAcknowledge>)
+                    {
+                        writeValue(dataNetworkFormat, arg.receiverTmsi, offset);
+                        writeValue(dataNetworkFormat, arg.smsId, offset);
+                        writeValue(dataNetworkFormat, arg.status, offset);
+                    }
+                    else if constexpr (std::is_same_v<T, SmsStatusReport>)
+                    {
+                        writeValue(dataNetworkFormat, arg.senderTmsi, offset);
+                        writeValue(dataNetworkFormat, arg.smsId, offset);
+                        writeValue(dataNetworkFormat, arg.status, offset);
                     }
                     else if constexpr (std::is_same_v<T, ErrorResponse>)
                     {
@@ -257,6 +314,132 @@ std::optional<NetworkMessage> BinarySerializer::deserialize(PacketType packetTyp
             }
 
             return DistanceResponse{ distance.value() };
+        }
+        case PacketType::SMS_SEND :
+        {
+            std::optional<M_TMSI> senderTmsi = readValue<M_TMSI>(dataNetworkFormat, offset);
+            if (!senderTmsi.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<MSISDN> receiverMsisdn = readString(dataNetworkFormat, offset);
+            if (!receiverMsisdn.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<SmsId> smsId = readValue<SmsId>(dataNetworkFormat, offset);
+            if (!smsId.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<std::string> text = readString(dataNetworkFormat, offset);
+            if (!text.has_value())
+            {
+                return std::nullopt;
+            }
+
+            return SmsSendRequest{ senderTmsi.value(),
+                                   receiverMsisdn.value(),
+                                   smsId.value(),
+                                   text.value() };
+        }
+        case PacketType::SMS_SUBMIT_ACCEPT :
+        {
+            std::optional<SmsId> tempId = readValue<SmsId>(dataNetworkFormat, offset);
+            if (!tempId.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<SmsId> globalId = readValue<SmsId>(dataNetworkFormat, offset);
+            if (!globalId.has_value())
+            {
+                return std::nullopt;
+            }
+
+            return SmsSubmitAccept{ tempId.value(), globalId.value() };
+        }
+        case PacketType::SMS_RECEIVE :
+        {
+            std::optional<M_TMSI> receiverTmsi = readValue<M_TMSI>(dataNetworkFormat, offset);
+            if (!receiverTmsi.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<MSISDN> senderMsisdn = readString(dataNetworkFormat, offset);
+            if (!senderMsisdn.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<SmsId> smsId = readValue<SmsId>(dataNetworkFormat, offset);
+            if (!smsId.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<std::string> text = readString(dataNetworkFormat, offset);
+            if (!text.has_value())
+            {
+                return std::nullopt;
+            }
+
+            return SmsIncomingMessage{ receiverTmsi.value(),
+                                       senderMsisdn.value(),
+                                       smsId.value(),
+                                       text.value() };
+        }
+        case PacketType::SMS_DELIVERY_ACKNOWLEDGE :
+        {
+            std::optional<M_TMSI> receiverTmsi = readValue<M_TMSI>(dataNetworkFormat, offset);
+            if (!receiverTmsi.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<SmsId> smsId = readValue<SmsId>(dataNetworkFormat, offset);
+            if (!smsId.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<uint8_t> status = readValue<uint8_t>(dataNetworkFormat, offset);
+            if (!status.has_value())
+            {
+                return std::nullopt;
+            }
+
+            return SmsDeliveryAcknowledge{ receiverTmsi.value(),
+                                            smsId.value(),
+                                            static_cast<SmsDeliveryStatus>(status.value()) };
+        }
+        case PacketType::SMS_STATUS :
+        {
+            std::optional<M_TMSI> senderTmsi = readValue<M_TMSI>(dataNetworkFormat, offset);
+            if (!senderTmsi.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<SmsId> smsId = readValue<SmsId>(dataNetworkFormat, offset);
+            if (!smsId.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<uint8_t> status = readValue<uint8_t>(dataNetworkFormat, offset);
+            if (!status.has_value())
+            {
+                return std::nullopt;
+            }
+
+            return SmsStatusReport{ senderTmsi.value(),
+                                    smsId.value(),
+                                    static_cast<SmsDeliveryStatus>(status.value()) };
         }
         case PacketType::ERROR_MESSAGE :
         {

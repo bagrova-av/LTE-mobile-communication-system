@@ -13,4 +13,6 @@ inline constexpr size_t MIN_LENGTH_OF_MSISDN = 11;
 
 inline constexpr float MINIMAL_SIGNAL_STRENGTH = 0.0f;
 
+inline constexpr size_t MAX_RECORDS_IN_ADDRESS_BOOK = 5;
+
 #endif

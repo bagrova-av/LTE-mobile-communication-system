@@ -14,6 +14,7 @@ struct StartupParams
     std::optional<std::string> imei;
     std::optional<std::string> msisdn;
     std::optional<LocationPoint3D> initialLocation;
+    std::string addressBookPath;
 
     std::string nodes = "";
 

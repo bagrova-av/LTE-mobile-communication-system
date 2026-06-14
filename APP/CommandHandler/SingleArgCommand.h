@@ -3,8 +3,6 @@
 #define SINGLE_ARG_COMMAND_H
 
 #include "CommandInterface.h"
-#include "../../COMMON/utils.h"
-#include "../../COMMON/logging/Logger.h"
 
 class SingleArgCommand : public CommandInterface
 {

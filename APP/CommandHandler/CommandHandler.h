@@ -16,6 +16,7 @@ private:
     std::unordered_map<std::string, std::unique_ptr<CommandInterface>> commands;
     
     void printMenuHeader() const;
+    void printAddressBook() const;
 
 public:
     CommandHandler(App& app);

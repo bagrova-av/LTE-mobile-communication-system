@@ -1,4 +1,6 @@
 #include "CommandMove.h"
+#include "../../COMMON/logging/Logger.h"
+#include "../../COMMON/utils.h"
 
 #include <cstring>
 
@@ -41,6 +43,6 @@ bool CommandMove::execute(const std::vector<std::string>& args)
         Logger::info("Location updated from " + convertLocationToString(currentLocation) + " to " + convertLocationToString(app.getLocation()));
     }
 
-    app.sendLocationToServerAsync(app.getLocation(), app.getProtocol());
+    app.sendLocationToServerAsync(app.getLocation());
     return true;
 }

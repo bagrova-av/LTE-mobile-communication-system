@@ -46,9 +46,16 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location, const EpcCo
         throw std::runtime_error("ServerApp: failed to load mobility management entities from their config file");
     }
 
+    SmsCenterConfig smsCenterConfig;
+    if (!parseSmsCenterJSON(epcConfig.smsCenterConfigFile, smsCenterConfig))
+    {
+        throw std::runtime_error("ServerApp: failed to load sms center from its config file");
+    }
+
     mme = std::make_unique<MobilityManagmentEntity>(mobilityManagmentEntitiesConfigs[0],
                                                     std::move(baseStations),
-                                                    std::move(hlrEir));
+                                                    std::move(hlrEir),
+                                                    std::make_unique<SmsCenter>(smsCenterConfig));
 
     Logger::info("ServerApp initialized successfully. Listening on port " 
                 + std::to_string(listeningPort));
@@ -119,16 +126,26 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
 void ServerApp::processSingleClient(int clientFileDescriptor)
 {
     std::optional<M_TMSI> currentTmsi;
+    Protocol receivedProtocol = Protocol::JSON;
     while (true)
     {
         std::optional<ReceivedDataPacket> dataPacket = PacketTransporter::receiveDataPacketRequest(clientFileDescriptor);
         if (!dataPacket.has_value())
         {
-            ServerSocket::closeClientConnection(clientFileDescriptor);
-            return;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) // recv() timed out
+            {
+                errno = 0;
+                sendBufferedMessages(clientFileDescriptor, receivedProtocol, currentTmsi);
+                continue;
+            }
+            else
+            {
+                ServerSocket::closeClientConnection(clientFileDescriptor);
+                return;
+            }
         }
 
-        Protocol receivedProtocol = static_cast<Protocol>(dataPacket.value().protocolHeader);
+        receivedProtocol = static_cast<Protocol>(dataPacket.value().protocolHeader);
         auto serializer = SerializerFactory::createSerializer(receivedProtocol);
         if (!serializer)
         {
@@ -156,6 +173,11 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                         sendRrcReject(clientFileDescriptor, receivedProtocol, "No coverage");
                     }
                 }
+                else
+                {
+                    Logger::error("Failed to deserialize RRC_SEARCH packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                }
                 break;
             }
             case PacketType::ATTACH_REQUEST :
@@ -168,7 +190,8 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     std::optional<M_TMSI> m_tmsi = mme->attachClient(attachRequest.imei,
                                                                      attachRequest.imsi,
                                                                      attachRequest.baseStationId,
-                                                                     clientFileDescriptor);
+                                                                     clientFileDescriptor,
+                                                                     *serializer);
                     if (m_tmsi.has_value())
                     {
                         currentTmsi = m_tmsi.value();
@@ -178,6 +201,11 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     {
                         sendAttachReject(clientFileDescriptor, receivedProtocol, "Registration failed");
                     }
+                }
+                else
+                {
+                    Logger::error("Failed to deserialize ATTACH_REQUEST packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
                 }
                 break;
             }
@@ -213,10 +241,11 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
                                 + " is " + std::to_string(distance));
 
-                    sendDistanceResponce(clientFileDescriptor, receivedProtocol, distance);
+                    sendDistanceResponse(clientFileDescriptor, receivedProtocol, distance);
                 }
                 else
                 {
+                    Logger::error("Failed to deserialize LOCATION packet");
                     sendErrorResponse(clientFileDescriptor, receivedProtocol, "Invalid location data");
                 }
                 break;
@@ -243,9 +272,62 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     ServerSocket::closeClientConnection(clientFileDescriptor);
                     return; 
                 }
+                else
+                {
+                    Logger::error("Failed to deserialize DETACH_REQUEST packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                }
+                break;
+            }
+            case PacketType::SMS_SEND :
+            {
+                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::SMS_SEND,
+                                                                                dataPacket.value().data);
+                if (message.has_value())
+                {
+                    const SmsSendRequest& smsSendRequest = std::get<SmsSendRequest>(message.value());
+
+                    auto globalSmsIds = mme->handleSmsRequest(smsSendRequest, *serializer);
+                    if (globalSmsIds.has_value())
+                    {
+                        for (const auto& globalSmsId : globalSmsIds.value())
+                        {
+                            sendSmsSubmitAccept(clientFileDescriptor, receivedProtocol,
+                                                smsSendRequest.smsId, globalSmsId);
+                        }
+                    }
+                    else
+                    {
+                        sendErrorResponse(clientFileDescriptor, receivedProtocol, "The SMS was not delivered");
+                    }
+                }
+                else
+                {
+                    Logger::error("Failed to deserialize SMS_SEND packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed SMS packet");
+                }
+                break;
+            }
+            case PacketType::SMS_DELIVERY_ACKNOWLEDGE :
+            {
+                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::SMS_DELIVERY_ACKNOWLEDGE,
+                                                                                dataPacket.value().data);
+                if (message.has_value())
+                {
+                    const SmsDeliveryAcknowledge& smsDeliveryAcknowledge =
+                                                            std::get<SmsDeliveryAcknowledge>(message.value());
+                    mme->handleSmsDeliveryAcknowledge(smsDeliveryAcknowledge, *serializer);
+                }
+                else
+                {
+                    Logger::error("Failed to deserialize SMS_DELIVERY_ACKNOWLEDGE packet");
+                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                }
                 break;
             }
         }
+
+        sendBufferedMessages(clientFileDescriptor, receivedProtocol, currentTmsi);
     }
 
     if (currentTmsi.has_value())
@@ -254,6 +336,30 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
         currentTmsi = std::nullopt;
     }
     ServerSocket::closeClientConnection(clientFileDescriptor);
+}
+
+void ServerApp::sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
+                                     const std::optional<M_TMSI>& currentTmsi)
+{
+    if (!currentTmsi.has_value())
+    {
+        return;
+    }
+
+    BaseStation* baseStation = mme->getBaseStationByTmsi(currentTmsi.value());
+    if (!baseStation)
+    {
+        return;
+    }
+
+    std::optional<BufferedPacket> pendingPacket;
+    while ( (pendingPacket = baseStation->popMessageFromBuffer(currentTmsi.value())).has_value() )
+    {
+        PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
+                                                  static_cast<uint8_t>(protocol),
+                                                  pendingPacket.value().packetType,
+                                                  pendingPacket.value().data);
+    }
 }
 
 void ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId)
@@ -275,7 +381,7 @@ void ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, Bas
                                               data);
 }
 
-void ServerApp::sendRrcReject(int clientFileDescriptor, Protocol protocol, std::string reason)
+void ServerApp::sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
 {
     RrcReject rrcReject{reason};
     auto serializer = SerializerFactory::createSerializer(protocol);
@@ -312,7 +418,7 @@ void ServerApp::sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_
                                               data);
 }
 
-void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, std::string reason)
+void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
 {
     AttachReject attachReject{reason};
     auto serializer = SerializerFactory::createSerializer(protocol);
@@ -330,7 +436,7 @@ void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, st
                                               data);
 }
 
-void ServerApp::sendDistanceResponce(int clientFileDescriptor, Protocol protocol, CoordinatesType distance)
+void ServerApp::sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance)
 {
     DistanceResponse distanceResponse{distance};
     auto serializer = SerializerFactory::createSerializer(protocol);
@@ -348,9 +454,9 @@ void ServerApp::sendDistanceResponce(int clientFileDescriptor, Protocol protocol
                                               data);
 }
 
-void ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, std::string reason)
+void ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message)
 {
-    ErrorResponse errorResponse{reason};
+    ErrorResponse errorResponse{message};
     auto serializer = SerializerFactory::createSerializer(protocol);
     if (!serializer)
     {
@@ -363,6 +469,24 @@ void ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, s
     PacketTransporter::sendDataPacketResponse(clientFileDescriptor, 
                                               static_cast<uint8_t>(protocol),
                                               PacketType::ERROR_MESSAGE,
+                                              data);
+}
+
+void ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId)
+{
+    SmsSubmitAccept smsSubmitAccept{tempSmsId, globalSmsId};
+    auto serializer = SerializerFactory::createSerializer(protocol);
+    if (!serializer)
+    {
+        Logger::warning("Received unknown protocol header from client");
+        ServerSocket::closeClientConnection(clientFileDescriptor);
+        return;
+    }
+
+    BytesBuffer data = serializer->serialize(smsSubmitAccept);
+    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
+                                              static_cast<uint8_t>(protocol),
+                                              PacketType::SMS_SUBMIT_ACCEPT,
                                               data);
 }
 

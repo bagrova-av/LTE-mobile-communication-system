@@ -7,14 +7,15 @@
 class HlrEirInterface
 {
 protected:
-    //std::optional<SubscriberStatus> convertStringToStatus(const std::string& statusString);
     virtual HlrEirRecord* getSubscriberPointerByImsi(const IMSI& imsi) = 0;
+    virtual HlrEirRecord* getSubscriberPointerByMsisdn(const MSISDN& msisdn) = 0;
 
 public:
     virtual ~HlrEirInterface() = default;
 
     virtual bool loadRecordsFromFile(const std::string& filePath) = 0;
     virtual std::optional<HlrEirRecord> getSubscriberByImsi(const IMSI& imsi) = 0;
+    virtual std::optional<HlrEirRecord> getSubscriberByMsisdn(const MSISDN& msisdn) = 0;
     virtual bool updateSubscriberStatus(const IMSI& imsi, const SubscriberStatus& newStatus) = 0;
     virtual bool updateSubscriberSessionData(const IMSI& imsi,
                                             std::optional<MmeId> mmeId,

@@ -26,6 +26,7 @@ set(CORE_SOURCE_LIST
     CORE/PacketTransporter.cpp
     CORE/network/BinarySerializer.cpp
     CORE/network/JsonSerializer.cpp
+    CORE/network/NetworkMessages.cpp
     CORE/entitiesConfigs/SubscriberRecord.cpp
     COMMON/utils.cpp
     COMMON/networkUtils.cpp
@@ -50,12 +51,16 @@ target_link_libraries(${PROJECT_NAME}Core PUBLIC
 
 add_library(${PROJECT_NAME}ClientLib STATIC
     APP/app/App.cpp
+    APP/app/SmsStorage.cpp
     APP/CommandHandler/CommandHandler.cpp
     APP/CommandHandler/SingleArgCommand.cpp
     APP/CommandHandler/CommandActive.cpp
     APP/CommandHandler/CommandExit.cpp
     APP/CommandHandler/CommandMove.cpp
-    APP/CommandHandler/CommandProtocol.cpp    
+    APP/CommandHandler/CommandProtocol.cpp
+    APP/CommandHandler/CommandReceivedSms.cpp
+    APP/CommandHandler/CommandSentSms.cpp
+    APP/CommandHandler/CommandSms.cpp
 )
 target_include_directories(${PROJECT_NAME}ClientLib PUBLIC 
     APP/
@@ -73,10 +78,10 @@ target_link_libraries(${PROJECT_NAME}Client PRIVATE ${PROJECT_NAME}ClientLib)
 add_executable(${PROJECT_NAME}Server
     SERVER/mainServer.cpp
     SERVER/ServerApp.cpp
-    #SERVER/entities/hlrAndEir/HlrEirInterface.cpp
     SERVER/entities/hlrAndEir/JsonHlrEir.cpp
     SERVER/entities/BaseStation.cpp
     SERVER/entities/MobilityManagmentEntity.cpp
+    SERVER/entities/SmsCenter.cpp
 )
 target_link_libraries(${PROJECT_NAME}Server PRIVATE ${PROJECT_NAME}Core)
 

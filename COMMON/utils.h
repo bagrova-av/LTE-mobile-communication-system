@@ -73,6 +73,8 @@ std::string toLowerCase(const std::string& str);
 
 std::string currentDateTimeToString();
 
+bool isBlankString(const std::string& str);
+
 void initLogger(const std::string& executablePath, const std::string& fileName);
 
 #endif

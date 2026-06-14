@@ -6,6 +6,9 @@
 #include "BaseStation.h"
 #include "./hlrAndEir/JsonHlrEir.h"
 #include "../../CORE/entitiesConfigs/MmeConfig.h"
+#include "SmsCenter.h"
+#include "../../CORE/network/NetworkMessages.h"
+#include "../../CORE/network/SerializerInterface.h"
 
 struct clientsData
 {
@@ -21,6 +24,7 @@ private:
     std::vector<std::unique_ptr<BaseStation>> baseStations;
     std::unordered_map<M_TMSI, clientsData> visitorLocationRegister;
     std::unique_ptr<HlrEirInterface> homeLocationAndEquipmentIdentityRegister;
+    std::unique_ptr<SmsCenter> smsCenter;
     
     std::unordered_map<MSISDN, M_TMSI> msisdnLookupTmsi;
     std::unordered_map<IMSI, M_TMSI> imsiLookupTmsi;
@@ -29,22 +33,32 @@ private:
     std::mutex mmeMutex;
 
     M_TMSI generateTMSI();
-    bool detachClientWithoutMutex(M_TMSI m_tmsi); 
+    bool detachClientWithoutMutex(M_TMSI m_tmsi);
+    std::optional<std::pair<M_TMSI, BaseStationId>> findRoutingInfoForSms(const MSISDN& receiverMsisdn);
+    BaseStation* getBaseStationByIdWithoutMutex(BaseStationId baseStationId);
+    BaseStation* getBaseStationByTmsiWithoutMutex(M_TMSI m_tmsi);
 
 public:
-    explicit MobilityManagmentEntity(MmeConfig config,
+    explicit MobilityManagmentEntity(const MmeConfig& config,
                                     std::vector<std::unique_ptr<BaseStation>> baseStations,
-                                    std::unique_ptr<HlrEirInterface> hlrEir);
+                                    std::unique_ptr<HlrEirInterface> hlrEir,
+                                    std::unique_ptr<SmsCenter> smsCenter);
 
     BaseStation* getBaseStationById(BaseStationId baseStationId);
+    BaseStation* getBaseStationByTmsi(M_TMSI m_tmsi);
     std::optional<BaseStationId> findBestBaseStation(const LocationPoint3D& clientLocation);
 
     std::optional<M_TMSI> attachClient(const IMEI& imei, const IMSI& imsi,
-                                       BaseStationId baseStationId, int clientFileDescriptor);
+                                       BaseStationId baseStationId, int clientFileDescriptor,
+                                       const SerializerInterface& serializer);
     bool detachClient(M_TMSI m_tmsi);
     void startHandover(M_TMSI m_tmsi, const LocationPoint3D& newClientLocation);
-    void sendSMStoSMSC();
-    std::optional<std::pair<M_TMSI, BaseStationId>> findRoutingInfoForSMS(const MSISDN& msisdn);
+    void sendSmsToSmsc();
+    std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request,
+                                                       const SerializerInterface& serializer);
+    void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages,
+                                      const SerializerInterface& serializer);
+    void sendSmsSubmitAccept();
 };
 
 #endif

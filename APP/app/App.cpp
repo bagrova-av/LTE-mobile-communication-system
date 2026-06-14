@@ -2,12 +2,16 @@
 #include "../../CORE/PacketTransporter.h"
 #include "../../COMMON/logging/Logger.h"
 #include "../../CORE/network/SerializerFactory.h"
+#include "../../COMMON/constants.h"
+#include "../../COMMON/parserUtils.h"
 
 #include <iostream>
 
-App::App(const AppConfig& appConfig, const AppState& initialState) :
+App::App(const AppConfig& appConfig, const AppState& initialState,
+        const std::map<size_t, AddressBookEntry>& addressBook) :
     config(appConfig),
-    state(initialState)
+    state(initialState),
+    addressBook(addressBook)
 {
     Logger::info("Application initialized successfully");
     networkThread = std::thread(&App::networkThreadWorker, this);
@@ -24,6 +28,16 @@ App::~App()
     Logger::info("Application shutdown complete");
 }
 
+std::optional<AddressBookEntry> App::getAddressBookEntryByShortcut(size_t shortcut) const
+{
+    auto it = addressBook.find(shortcut);
+    if (it == addressBook.end())
+    {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
 void App::pushTaskToQueue(TaskType type, Protocol protocol, TaskData data)
 {
     if(!networkTasks.push(NetworkTask{type, protocol, std::move(data)}))
@@ -32,19 +46,24 @@ void App::pushTaskToQueue(TaskType type, Protocol protocol, TaskData data)
     }
 }
 
-void App::sendLocationToServerAsync(const LocationPoint3D& location, Protocol protocol)
+void App::sendLocationToServerAsync(const LocationPoint3D& location)
 {
-    pushTaskToQueue(TaskType::LOCATION, protocol, LocationTaskData{location});
+    pushTaskToQueue(TaskType::LOCATION, state.protocol, LocationTaskData{location});
 }
 
-void App::sendAttachTaskToServerAsync(Protocol protocol)
+void App::sendAttachTaskToServerAsync()
 {
-    pushTaskToQueue(TaskType::ATTACH, protocol, EmptyTaskData{});
+    pushTaskToQueue(TaskType::ATTACH, state.protocol, EmptyTaskData{});
 }
 
-void App::sendDetachTaskToServerAsync(Protocol protocol)
+void App::sendDetachTaskToServerAsync()
 {
-    pushTaskToQueue(TaskType::DETACH, protocol, EmptyTaskData{});
+    pushTaskToQueue(TaskType::DETACH, state.protocol, EmptyTaskData{});
+}
+
+void App::sendSmsTaskToServerAsync(const SmsTaskData& smsTaskData)
+{
+    pushTaskToQueue(TaskType::SEND_SMS, state.protocol, smsTaskData);
 }
 
 void App::handleAttachTask(uint8_t protocolHeader,
@@ -217,7 +236,8 @@ void App::handleLocationTask(uint8_t protocolHeader,
 
     if (distanceResponse.value().packetType == PacketType::DISTANCE)
     {
-        auto message = serializer.deserialize(PacketType::DISTANCE, distanceResponse.value().data);
+        auto message = serializer.deserialize(PacketType::DISTANCE,
+                                              distanceResponse.value().data);
         if (message.has_value())
         {
             CoordinatesType distance = std::get<DistanceResponse>(message.value()).distance;
@@ -235,7 +255,8 @@ void App::handleLocationTask(uint8_t protocolHeader,
     }
     else if (distanceResponse.value().packetType == PacketType::ERROR_MESSAGE)
     {
-        auto message = serializer.deserialize(PacketType::ERROR_MESSAGE, distanceResponse.value().data);
+        auto message = serializer.deserialize(PacketType::ERROR_MESSAGE,
+                                              distanceResponse.value().data);
         if (message.has_value())
         {
             std::string errorText = std::get<ErrorResponse>(message.value()).message;
@@ -255,19 +276,159 @@ void App::handleLocationTask(uint8_t protocolHeader,
     }
 }
 
+void App::handleSendSmsTask(uint8_t protocolHeader,
+                            const SerializerInterface& serializer,
+                            const NetworkTask& networkTask)
+{
+    const SmsTaskData& smsData = std::get<SmsTaskData>(networkTask.data);
+
+    M_TMSI m_tmsi;
+    {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        if (!state.m_tmsi.has_value())
+        {
+            Logger::error("Failed to send SMS: client is not registered (no TMSI)");
+            smsStorage.updateSmsStatusByTempId(smsData.tempId, SmsDeliveryStatus::FAILED);
+            return;
+        }
+        m_tmsi = state.m_tmsi.value();
+    }
+
+    SmsSendRequest request{m_tmsi, smsData.receiverMsisdn, smsData.tempId, smsData.text};
+    if (!PacketTransporter::sendDataPacketRequest(clientSocket,
+                                                  protocolHeader,
+                                                  PacketType::SMS_SEND,
+                                                  serializer.serialize(request)))
+    {
+        Logger::error("Failed to send SMS to the server");
+        smsStorage.updateSmsStatusByTempId(smsData.tempId, SmsDeliveryStatus::FAILED);
+    }
+}
+
+void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
+{
+    Protocol protocol;
+    std::optional<M_TMSI> m_tmsi;
+    {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        protocol = state.protocol;
+        m_tmsi = state.m_tmsi;
+    }
+    auto serializer = SerializerFactory::createSerializer(protocol);
+
+    switch (dataPacket.packetType)
+    {
+        case PacketType::SMS_SUBMIT_ACCEPT :
+        {
+            const auto& message = serializer->deserialize(PacketType::SMS_SUBMIT_ACCEPT,
+                                                          dataPacket.data);
+            if (message.has_value())
+            {
+                const auto& submitAccept = std::get<SmsSubmitAccept>(message.value());
+                if (!linkSmsIds(submitAccept.tempId, submitAccept.globalId))
+                {
+                    Logger::error("Failed to associate the local ID for the message with its global value");
+                }
+            }
+            else
+            {
+                Logger::error("Failed to deserialize SMS_SUBMIT_ACCEPT packet");
+                responsesQueue.push("Received deformed network data packet");
+            }
+            break;
+        }
+        case PacketType::SMS_RECEIVE :
+        {
+            const auto& message = serializer->deserialize(PacketType::SMS_RECEIVE,
+                                                          dataPacket.data);
+            if (message.has_value())
+            {
+                const auto& sms = std::get<SmsIncomingMessage>(message.value());
+                
+                addReceivedSmsRecord(ReceivedSmsRecord{sms.senderMsisdn, sms.text});
+                responsesQueue.push("New SMS from " + sms.senderMsisdn + ":\n" + sms.text);
+
+                SmsDeliveryAcknowledge smsDeliveryAcknowledge{m_tmsi.value(),
+                                                              sms.smsId,
+                                                              SmsDeliveryStatus::DELIVERED}; //TODO
+                PacketTransporter::sendDataPacketRequest(clientSocket,
+                                                        static_cast<uint8_t>(protocol),
+                                                        PacketType::SMS_DELIVERY_ACKNOWLEDGE,
+                                                        serializer->serialize(smsDeliveryAcknowledge));
+            }
+            else
+            {
+                Logger::error("Failed to deserialize SMS_RECEIVE packet");
+                responsesQueue.push("Received deformed network data packet");
+            }
+            break;
+        }
+        case PacketType::SMS_STATUS :
+        {
+            const auto& message = serializer->deserialize(PacketType::SMS_STATUS,
+                                                          dataPacket.data);
+            if (message.has_value())
+            {
+                const auto& report = std::get<SmsStatusReport>(message.value());
+                smsStorage.updateSmsStatusByGlobalId(report.smsId, report.status);
+                responsesQueue.push("SMS with ID " + std::to_string(report.smsId)
+                                    + " is " + convertSmsDeliveryStatusToString(report.status));
+                break;
+            }
+            else
+            {
+                Logger::error("Failed to deserialize SMS_STATUS packet");
+                responsesQueue.push("Received deformed network data packet");
+            }
+            break;
+        }
+        case PacketType::ERROR_MESSAGE :
+        {
+            const auto& message = serializer->deserialize(PacketType::ERROR_MESSAGE,
+                                                         dataPacket.data);
+            if (message.has_value())
+            {
+                responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
+                break;
+            }
+            else
+            {
+                Logger::error("Failed to deserialize ERROR_MESSAGE packet");
+                responsesQueue.push("Received deformed network data packet");
+            }
+            break;
+        }
+    }
+}
+
 void App::networkThreadWorker()
 {
     Logger::info("Client network thread started");
 
     while (true)
     {
-        auto networkTask = networkTasks.pop();
+        auto networkTask = networkTasks.tryPop();
         if (!networkTask.has_value())
         {
-            break;
+            if (networkTasks.isClosed())
+            {
+                break;
+            }
+
+            if (clientSocket.isOpen())
+            {
+                std::optional<ReceivedDataPacket> incomingPacket;
+                while ( (incomingPacket = PacketTransporter::receiveDataPacketResponse(clientSocket)).has_value() )
+                {
+                    handleIncomingServerMessage(incomingPacket.value());
+                }
+            }
+            //std::this_thread::sleep_for(std::chrono::milliseconds(10)); //TODO
+            continue;
         }
 
-        std::unique_ptr<SerializerInterface> serializer = SerializerFactory::createSerializer(networkTask.value().protocol);
+        std::unique_ptr<SerializerInterface> serializer = SerializerFactory::createSerializer(
+                                                                            networkTask.value().protocol);
         if (!serializer)
         {
             Logger::warning("App: the protocol is not supported for transmission");
@@ -286,6 +447,19 @@ void App::networkThreadWorker()
                 if (clientSocket.isOpen())
                 {
                     handleLocationTask(protocolHeader, *serializer, networkTask.value());
+                }
+                else
+                {
+                    Logger::warning("Network operation failed: no active connection to the network. "
+                                    "Please, use 'ACTIVE true' first");
+                }
+                break;
+            }
+            case TaskType::SEND_SMS : 
+            {
+                if (clientSocket.isOpen())
+                {
+                    handleSendSmsTask(protocolHeader, *serializer, networkTask.value());
                 }
                 else
                 {

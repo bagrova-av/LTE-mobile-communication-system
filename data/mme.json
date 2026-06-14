@@ -1,6 +1,6 @@
 [
   {
     "id": 1,
-    "maximum_records_in_vlr": 100
+    "max_records_in_vlr": 100
   }
 ]

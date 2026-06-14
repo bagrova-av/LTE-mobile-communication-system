@@ -56,6 +56,37 @@ BytesBuffer JsonSerializer::serialize(const NetworkMessage& message) const
                     {
                         dataJSON["distance"] = arg.distance;
                     }
+                    else if constexpr (std::is_same_v<T, SmsSendRequest>)
+                    {
+                        dataJSON["senderTmsi"] = arg.senderTmsi;
+                        dataJSON["receiverMsisdn"] = arg.receiverMsisdn;
+                        dataJSON["smsId"] = arg.smsId;
+                        dataJSON["text"] = arg.text;
+                    }
+                    else if constexpr (std::is_same_v<T, SmsSubmitAccept>)
+                    {
+                        dataJSON["tempId"] = arg.tempId;
+                        dataJSON["globalId"] = arg.globalId;
+                    }
+                    else if constexpr (std::is_same_v<T, SmsIncomingMessage>)
+                    {
+                        dataJSON["receiverTmsi"] = arg.receiverTmsi;
+                        dataJSON["senderMsisdn"] = arg.senderMsisdn;
+                        dataJSON["smsId"] = arg.smsId;
+                        dataJSON["text"] = arg.text;
+                    }
+                    else if constexpr (std::is_same_v<T, SmsDeliveryAcknowledge>)
+                    {
+                        dataJSON["receiverTmsi"] = arg.receiverTmsi;
+                        dataJSON["smsId"] = arg.smsId;
+                        dataJSON["status"] = arg.status;
+                    }
+                    else if constexpr (std::is_same_v<T, SmsStatusReport>)
+                    {
+                        dataJSON["senderTmsi"] = arg.senderTmsi;
+                        dataJSON["smsId"] = arg.smsId;
+                        dataJSON["status"] = arg.status;
+                    }
                     else if constexpr (std::is_same_v<T, ErrorResponse>)
                     {
                         dataJSON["message"] = arg.message;
@@ -114,6 +145,36 @@ std::optional<NetworkMessage> JsonSerializer::deserialize(PacketType packetType,
             case PacketType::DISTANCE :
             {
                 return DistanceResponse{ dataJSON["distance"] };
+            }
+            case PacketType::SMS_SEND :
+            {
+                return SmsSendRequest{ dataJSON["senderTmsi"],
+                                       dataJSON["receiverMsisdn"],
+                                       dataJSON["smsId"],
+                                       dataJSON["text"] };
+            }
+            case PacketType::SMS_SUBMIT_ACCEPT :
+            {
+                return SmsSubmitAccept{ dataJSON["tempId"], dataJSON["globalId"] };
+            }
+            case PacketType::SMS_RECEIVE :
+            {
+                return SmsIncomingMessage{ dataJSON["receiverTmsi"],
+                                           dataJSON["senderMsisdn"],
+                                           dataJSON["smsId"],
+                                           dataJSON["text"] };
+            }
+            case PacketType::SMS_DELIVERY_ACKNOWLEDGE :
+            {
+                return SmsDeliveryAcknowledge{ dataJSON["receiverTmsi"],
+                                               dataJSON["smsId"],
+                                               dataJSON["status"] };
+            }
+            case PacketType::SMS_STATUS :
+            {
+                return SmsStatusReport{ dataJSON["senderTmsi"],
+                                        dataJSON["smsId"],
+                                        dataJSON["status"] };
             }
             case PacketType::ERROR_MESSAGE :
             {

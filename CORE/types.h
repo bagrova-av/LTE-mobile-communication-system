@@ -24,6 +24,11 @@ using Nodes = std::string;
 using Port = uint16_t;
 using BaseStationId = uint32_t;
 using MmeId = size_t;
+using SmsId = uint32_t;
+using Seconds = float;
+using Milliseconds = long long;
+
+using BytesBuffer = std::vector<uint8_t>;
 
 struct IPv4
 {
@@ -161,10 +166,6 @@ enum class Protocol : uint8_t
     BINARY = 2
 };
 std::ostream& operator<<(std::ostream& out, const Protocol& protocol);
-
-using BytesBuffer = std::vector<uint8_t>;
-
-using Seconds = float;
 
 #endif
 
