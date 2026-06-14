@@ -28,16 +28,17 @@ private:
     void networkThreadWorker(std::promise<bool> startPromise);
     void processSingleClient(int clientFileDescriptor);
 
+    void closeClientConnection(int clientFileDescriptor);
     void checkActiveClientsCount();
 
-    void sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId);
-    void sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason);
-    void sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_TMSI m_tmsi);
-    void sendAttachReject(int clientFileDescriptor, Protocol protocol, const std::string& reason);
-    void sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance);
-    void sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message);
+    bool sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId);
+    bool sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason);
+    bool sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_TMSI m_tmsi);
+    bool sendAttachReject(int clientFileDescriptor, Protocol protocol, const std::string& reason);
+    bool sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance);
+    bool sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message);
 
-    void sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId);
+    bool sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId);
 
     void sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
                               const std::optional<M_TMSI>& currentTmsi);

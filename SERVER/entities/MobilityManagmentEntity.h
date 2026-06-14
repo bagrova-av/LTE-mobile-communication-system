@@ -48,6 +48,8 @@ public:
     BaseStation* getBaseStationByTmsi(M_TMSI m_tmsi);
     std::optional<BaseStationId> findBestBaseStation(const LocationPoint3D& clientLocation);
 
+    void cleanupExpiredMessages(const SerializerInterface& serializer);
+
     std::optional<M_TMSI> attachClient(const IMEI& imei, const IMSI& imsi,
                                        BaseStationId baseStationId, int clientFileDescriptor,
                                        const SerializerInterface& serializer);

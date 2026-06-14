@@ -65,6 +65,30 @@ std::vector<SmsRecord> SmsCenter::popMessagesForReceiver(const MSISDN& receiverM
     return result;
 }
 
+std::vector<SmsRecord> SmsCenter::popExpiredMessages()
+{
+    std::lock_guard<std::mutex> lock(smscMutex);
+
+    std::vector<SmsRecord> expiredSms;
+    auto now = std::chrono::system_clock::now();
+
+    for (auto it = smsStorage.begin(); it != smsStorage.end(); )
+    {
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.createdTime);
+        if (duration > config.smsTtlMs)
+        {
+            expiredSms.push_back(it->second);
+            it = smsStorage.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    return expiredSms;
+}
+
 std::optional<SmsRecord> SmsCenter::markSmsAsDelivered(SmsId smsId)
 {
     std::lock_guard<std::mutex> lock(smscMutex);

@@ -63,6 +63,12 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location, const EpcCo
                 + std::to_string(listeningPort));
 }
 
+void ServerApp::closeClientConnection(int clientFileDescriptor)
+{
+    ServerSocket::closeClientConnection(clientFileDescriptor);
+    checkActiveClientsCount();
+}
+
 void ServerApp::checkActiveClientsCount()
 {
     if (--activeClientsCount == 0)
@@ -95,7 +101,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
                     auto now = std::chrono::system_clock::now();
                     auto lastTime = lastClientDisconnectedTime.load();
                     auto idleDuration = std::chrono::duration_cast<std::chrono::seconds>(now - lastTime);
-                    if (idleDuration.count() >= epcConfig.simtelTtl)
+                    if (idleDuration >= epcConfig.simtelTtlSec)
                     {
                         Logger::info("SimTel TTL reached. Shutting down server...");
                         isRunning = false;
@@ -151,6 +157,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
         }
     }
     Logger::info("All clients finished. Network thread shutting down");
+    std::cout << "\n\nServer network thread stopped. Press ENTER to exit" << '\n';
 }
 
 void ServerApp::processSingleClient(int clientFileDescriptor)
@@ -159,30 +166,38 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
     Protocol receivedProtocol = Protocol::JSON;
     while (true)
     {
+        auto serializer = SerializerFactory::createSerializer(receivedProtocol);
+        if (!serializer)
+        {
+            Logger::warning("Received unknown protocol header from client");
+            closeClientConnection(clientFileDescriptor);
+            return;
+        }
+
         std::optional<ReceivedDataPacket> dataPacket = PacketTransporter::receiveDataPacketRequest(clientFileDescriptor);
         if (!dataPacket.has_value())
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK) // recv() timed out
             {
                 errno = 0;
+                mme->cleanupExpiredMessages(*serializer);
+
                 sendBufferedMessages(clientFileDescriptor, receivedProtocol, currentTmsi);
                 continue;
             }
             else
             {
-                ServerSocket::closeClientConnection(clientFileDescriptor);
-                checkActiveClientsCount();
+                closeClientConnection(clientFileDescriptor);
                 return;
             }
         }
 
         receivedProtocol = static_cast<Protocol>(dataPacket.value().protocolHeader);
-        auto serializer = SerializerFactory::createSerializer(receivedProtocol);
+        serializer = SerializerFactory::createSerializer(receivedProtocol);
         if (!serializer)
         {
             Logger::warning("Received unknown protocol header from client");
-            ServerSocket::closeClientConnection(clientFileDescriptor);
-            checkActiveClientsCount();
+            closeClientConnection(clientFileDescriptor);
             return;
         }
 
@@ -198,17 +213,26 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     std::optional<BaseStationId> bestBaseStationId = mme->findBestBaseStation(searchRequest.position);
                     if (bestBaseStationId.has_value())
                     {
-                        sendRrcResponse(clientFileDescriptor, receivedProtocol, bestBaseStationId.value());
+                        if (!sendRrcResponse(clientFileDescriptor, receivedProtocol, bestBaseStationId.value()))
+                        {
+                            closeClientConnection(clientFileDescriptor);
+                        }
                     }
                     else
                     {
-                        sendRrcReject(clientFileDescriptor, receivedProtocol, "No coverage");
+                        if (!sendRrcReject(clientFileDescriptor, receivedProtocol, "No coverage"))
+                        {
+                            closeClientConnection(clientFileDescriptor);
+                        }
                     }
                 }
                 else
                 {
                     Logger::error("Failed to deserialize RRC_SEARCH packet");
-                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
+                    {
+                        closeClientConnection(clientFileDescriptor);
+                    }
                 }
                 break;
             }
@@ -227,17 +251,26 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     if (m_tmsi.has_value())
                     {
                         currentTmsi = m_tmsi.value();
-                        sendAttachAccept(clientFileDescriptor, receivedProtocol, m_tmsi.value());
+                        if (!sendAttachAccept(clientFileDescriptor, receivedProtocol, m_tmsi.value()))
+                        {
+                            closeClientConnection(clientFileDescriptor);
+                        }
                     }
                     else
                     {
-                        sendAttachReject(clientFileDescriptor, receivedProtocol, "Registration failed");
+                        if (!sendAttachReject(clientFileDescriptor, receivedProtocol, "Registration failed"))
+                        {
+                            closeClientConnection(clientFileDescriptor);
+                        }
                     }
                 }
                 else
                 {
                     Logger::error("Failed to deserialize ATTACH_REQUEST packet");
-                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
+                    {
+                        closeClientConnection(clientFileDescriptor);
+                    }
                 }
                 break;
             }
@@ -254,12 +287,18 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
                                 + " is " + std::to_string(distance));
 
-                    sendDistanceResponse(clientFileDescriptor, receivedProtocol, distance);
+                    if (!sendDistanceResponse(clientFileDescriptor, receivedProtocol, distance))
+                    {
+                        closeClientConnection(clientFileDescriptor);
+                    }
                 }
                 else
                 {
                     Logger::error("Failed to deserialize LOCATION packet");
-                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Invalid location data");
+                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Invalid location data"))
+                    {
+                        closeClientConnection(clientFileDescriptor);
+                    }
                 }
                 break;
             }
@@ -289,7 +328,10 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                 else
                 {
                     Logger::error("Failed to deserialize DETACH_REQUEST packet");
-                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
+                    {
+                        closeClientConnection(clientFileDescriptor);
+                    }
                 }
                 break;
             }
@@ -306,19 +348,28 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     {
                         for (const auto& globalSmsId : globalSmsIds.value())
                         {
-                            sendSmsSubmitAccept(clientFileDescriptor, receivedProtocol,
-                                                smsSendRequest.smsId, globalSmsId);
+                            if (!sendSmsSubmitAccept(clientFileDescriptor, receivedProtocol,
+                                                    smsSendRequest.smsId, globalSmsId))
+                            {
+                                closeClientConnection(clientFileDescriptor);
+                            }
                         }
                     }
                     else
                     {
-                        sendErrorResponse(clientFileDescriptor, receivedProtocol, "The SMS was not delivered");
+                        if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "The SMS was not delivered"))
+                        {
+                            closeClientConnection(clientFileDescriptor);
+                        }
                     }
                 }
                 else
                 {
                     Logger::error("Failed to deserialize SMS_SEND packet");
-                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed SMS packet");
+                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed SMS packet"))
+                    {
+                        closeClientConnection(clientFileDescriptor);
+                    }
                 }
                 break;
             }
@@ -335,7 +386,10 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                 else
                 {
                     Logger::error("Failed to deserialize SMS_DELIVERY_ACKNOWLEDGE packet");
-                    sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet");
+                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
+                    {
+                        closeClientConnection(clientFileDescriptor);
+                    }
                 }
                 break;
             }
@@ -349,8 +403,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
         mme->detachClient(currentTmsi.value());
         currentTmsi = std::nullopt;
     }
-    ServerSocket::closeClientConnection(clientFileDescriptor);
-    checkActiveClientsCount();
+    closeClientConnection(clientFileDescriptor);
 }
 
 void ServerApp::sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
@@ -377,7 +430,7 @@ void ServerApp::sendBufferedMessages(int clientFileDescriptor, Protocol protocol
     }
 }
 
-void ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId)
+bool ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId)
 {
     RrcResponse rrcResponse{baseStationId};
 
@@ -385,8 +438,7 @@ void ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, Bas
     if (!serializer)
     {
         Logger::warning("Received unknown protocol header from client");
-        ServerSocket::closeClientConnection(clientFileDescriptor);
-        return;
+        return false;
     }
 
     BytesBuffer data = serializer->serialize(rrcResponse);
@@ -394,17 +446,17 @@ void ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, Bas
                                               static_cast<uint8_t>(protocol),
                                               PacketType::RRC_RESPONSE,
                                               data);
+    return true;
 }
 
-void ServerApp::sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
+bool ServerApp::sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
 {
     RrcReject rrcReject{reason};
     auto serializer = SerializerFactory::createSerializer(protocol);
     if (!serializer)
     {
         Logger::warning("Received unknown protocol header from client");
-        ServerSocket::closeClientConnection(clientFileDescriptor);
-        return;
+        return false;
     }
 
     BytesBuffer data = serializer->serialize(rrcReject);
@@ -412,9 +464,10 @@ void ServerApp::sendRrcReject(int clientFileDescriptor, Protocol protocol, const
                                               static_cast<uint8_t>(protocol),
                                               PacketType::RRC_REJECT,
                                               data);
+    return true;
 }
 
-void ServerApp::sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_TMSI m_tmsi)
+bool ServerApp::sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_TMSI m_tmsi)
 {
     AttachAccept attachAccept{m_tmsi};
 
@@ -422,8 +475,7 @@ void ServerApp::sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_
     if (!serializer)
     {
         Logger::warning("Received unknown protocol header from client");
-        ServerSocket::closeClientConnection(clientFileDescriptor);
-        return;
+        return false;
     }
 
     BytesBuffer data = serializer->serialize(attachAccept);
@@ -431,17 +483,17 @@ void ServerApp::sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_
                                               static_cast<uint8_t>(protocol),
                                               PacketType::ATTACH_ACCEPT,
                                               data);
+    return true;
 }
 
-void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
+bool ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
 {
     AttachReject attachReject{reason};
     auto serializer = SerializerFactory::createSerializer(protocol);
     if (!serializer)
     {
         Logger::warning("Received unknown protocol header from client");
-        ServerSocket::closeClientConnection(clientFileDescriptor);
-        return;
+        return false;
     }
 
     BytesBuffer data = serializer->serialize(attachReject);
@@ -449,17 +501,17 @@ void ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, co
                                               static_cast<uint8_t>(protocol),
                                               PacketType::ATTACH_REJECT,
                                               data);
+    return true;
 }
 
-void ServerApp::sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance)
+bool ServerApp::sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance)
 {
     DistanceResponse distanceResponse{distance};
     auto serializer = SerializerFactory::createSerializer(protocol);
     if (!serializer)
     {
         Logger::warning("Received unknown protocol header from client");
-        ServerSocket::closeClientConnection(clientFileDescriptor);
-        return;
+        return false;
     }
 
     BytesBuffer data = serializer->serialize(distanceResponse);
@@ -467,17 +519,17 @@ void ServerApp::sendDistanceResponse(int clientFileDescriptor, Protocol protocol
                                               static_cast<uint8_t>(protocol),
                                               PacketType::DISTANCE,
                                               data);
+    return true;
 }
 
-void ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message)
+bool ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message)
 {
     ErrorResponse errorResponse{message};
     auto serializer = SerializerFactory::createSerializer(protocol);
     if (!serializer)
     {
         Logger::warning("Received unknown protocol header from client");
-        ServerSocket::closeClientConnection(clientFileDescriptor);
-        return;
+        return false;
     }
 
     BytesBuffer data = serializer->serialize(errorResponse);
@@ -485,17 +537,17 @@ void ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, c
                                               static_cast<uint8_t>(protocol),
                                               PacketType::ERROR_MESSAGE,
                                               data);
+    return true;
 }
 
-void ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId)
+bool ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId)
 {
     SmsSubmitAccept smsSubmitAccept{tempSmsId, globalSmsId};
     auto serializer = SerializerFactory::createSerializer(protocol);
     if (!serializer)
     {
         Logger::warning("Received unknown protocol header from client");
-        ServerSocket::closeClientConnection(clientFileDescriptor);
-        return;
+        return false;
     }
 
     BytesBuffer data = serializer->serialize(smsSubmitAccept);
@@ -503,6 +555,7 @@ void ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol,
                                               static_cast<uint8_t>(protocol),
                                               PacketType::SMS_SUBMIT_ACCEPT,
                                               data);
+    return true;
 }
 
 void ServerApp::process()

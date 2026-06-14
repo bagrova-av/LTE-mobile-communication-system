@@ -346,6 +346,9 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
                 const auto& sms = std::get<SmsIncomingMessage>(message.value());
                 
                 addReceivedSmsRecord(ReceivedSmsRecord{sms.senderMsisdn, sms.text});
+                // std::cout << "\r" << std::string(50, ' ') << "\r";
+                // std::cout << "[NEW SMS from " << sms.senderMsisdn << "]: " << sms.text << std::endl;
+                // std::cout << "Please, enter the command: " << std::flush;
                 responsesQueue.push("New SMS from " + sms.senderMsisdn + ":\n" + sms.text);
 
                 SmsDeliveryAcknowledge smsDeliveryAcknowledge{m_tmsi.value(),

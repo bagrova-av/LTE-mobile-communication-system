@@ -78,6 +78,25 @@ std::optional<BaseStationId> MobilityManagmentEntity::findBestBaseStation(const 
     return bestBaseStationId;
 }
 
+void MobilityManagmentEntity::cleanupExpiredMessages(const SerializerInterface& serializer)
+{
+    std::vector<SmsRecord> expiredSms = smsCenter->popExpiredMessages();
+    for (const auto& sms : expiredSms)
+    {
+        BaseStation* baseStation = getBaseStationByTmsi(sms.senderTmsi);
+        if (!baseStation)
+        {
+            Logger::warning("Error: failed to send the client with M_TMSI = "
+                            + std::to_string(sms.senderTmsi)
+                            + "sms status report about SMS ID" + std::to_string(sms.smsId));
+        }
+        SmsStatusReport smsStatusReport{sms.senderTmsi, sms.smsId, SmsDeliveryStatus::FAILED};
+        BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
+                                       serializer.serialize(smsStatusReport)};
+        baseStation->pushMessageToBuffer(sms.senderTmsi, packetForBuffer);
+    }
+}
+
 std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, const IMSI& imsi,
                                                             BaseStationId baseStationId, 
                                                             int clientFileDescriptor,

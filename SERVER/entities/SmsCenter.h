@@ -44,11 +44,13 @@ public:
 
     size_t getMaxTextLength() const;
     size_t getMaxBufferCount() const;
-    Milliseconds getSmsTtlMs() const;
+    //Milliseconds getSmsTtlMs() const;
+    std::chrono::milliseconds getSmsTtlMs() const;
 
     std::optional<std::vector<SmsId>> storeMessage(M_TMSI senderTmsi, const MSISDN& senderMsisdn,
                                                 const MSISDN& receiverMsisdn, const std::string& fullText);            
     std::vector<SmsRecord> popMessagesForReceiver(const MSISDN& receiverMmsisdn);
+    std::vector<SmsRecord> popExpiredMessages();
     std::optional<SmsRecord> markSmsAsDelivered(SmsId smsId);
 };
 
@@ -62,7 +64,8 @@ inline size_t SmsCenter::getMaxBufferCount() const
     return config.maxBufferCount;
 }
 
-inline Milliseconds SmsCenter::getSmsTtlMs() const
+//inline Milliseconds SmsCenter::getSmsTtlMs() const
+inline std::chrono::milliseconds SmsCenter::getSmsTtlMs() const
 {
     return config.smsTtlMs;
 }

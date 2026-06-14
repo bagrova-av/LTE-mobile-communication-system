@@ -2,6 +2,8 @@
 #ifndef EPC_CONFIG_H
 #define EPC_CONFIG_H
 
+#include <chrono>
+
 #include "../types.h"
 
 struct HlrEirConfig
@@ -13,7 +15,7 @@ struct HlrEirConfig
 
 struct EpcConfig
 {
-    Seconds simtelTtl;
+    std::chrono::seconds simtelTtlSec;//Seconds simtelTtlSec;
     HlrEirConfig hlrEir;
     std::string nodesConfigFile;
     std::string mmeConfigFile;
