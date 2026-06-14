@@ -22,9 +22,13 @@ private:
     ServerSocket serverSocket;
     std::vector<std::future<void>> activeClientsFutures;
     std::unique_ptr<MobilityManagmentEntity> mme;
+    std::atomic<std::chrono::system_clock::time_point> lastClientDisconnectedTime;
+    std::atomic<size_t> activeClientsCount;
 
     void networkThreadWorker(std::promise<bool> startPromise);
     void processSingleClient(int clientFileDescriptor);
+
+    void checkActiveClientsCount();
 
     void sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId);
     void sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason);

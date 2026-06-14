@@ -19,6 +19,8 @@ public:
     ServerSocket(const ServerSocket& other) = delete;
     ServerSocket& operator=(const ServerSocket& other) = delete;
 
+    bool setAcceptTimeout(double seconds);
+
     bool startListening(Port port, int backlog = SOMAXCONN);
     void stopListening();
     int acceptClientConnection();

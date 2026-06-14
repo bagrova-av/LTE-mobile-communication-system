@@ -13,6 +13,8 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location, const EpcCo
     listeningPort(port),
     location(location),
     epcConfig(epcConfig),
+    activeClientsCount(0),
+    lastClientDisconnectedTime(std::chrono::system_clock::now()),
     serverSocket()
 {
     std::vector<std::unique_ptr<BaseStation>> baseStations;
@@ -61,6 +63,14 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location, const EpcCo
                 + std::to_string(listeningPort));
 }
 
+void ServerApp::checkActiveClientsCount()
+{
+    if (--activeClientsCount == 0)
+    {
+        lastClientDisconnectedTime = std::chrono::system_clock::now();
+    }
+}
+
 void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
 {
     if (!serverSocket.startListening(listeningPort))
@@ -71,11 +81,29 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
     }
     startPromise.set_value(true);
 
+    serverSocket.setAcceptTimeout(1.0); // 1 second
+
     while(isRunning)
     {
         int clientFileDescriptor = serverSocket.acceptClientConnection();
         if (clientFileDescriptor == -1)
         {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+                if (activeClientsCount == 0)
+                {
+                    auto now = std::chrono::system_clock::now();
+                    auto lastTime = lastClientDisconnectedTime.load();
+                    auto idleDuration = std::chrono::duration_cast<std::chrono::seconds>(now - lastTime);
+                    if (idleDuration.count() >= epcConfig.simtelTtl)
+                    {
+                        Logger::info("SimTel TTL reached. Shutting down server...");
+                        isRunning = false;
+                    }
+                }
+                errno = 0;
+                continue;
+            }
             if (!isRunning)
             {
                 Logger::info("Network thread detected shutdown signal");
@@ -86,6 +114,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
         }
         Logger::info("New client (file descriptor = " + std::to_string(clientFileDescriptor)
                      + ") connected");
+        ++activeClientsCount;
 
         if (activeClientsFutures.size() > MAX_ACTIVE_CLIENT_CONNECTIONS)
         {
@@ -93,6 +122,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
                 + std::to_string(MAX_ACTIVE_CLIENT_CONNECTIONS) + " ) has been reached. "
                 + "Closing new connection");
             ServerSocket::closeClientConnection(clientFileDescriptor);
+            --activeClientsCount;
             continue;
         }
 
@@ -141,6 +171,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             else
             {
                 ServerSocket::closeClientConnection(clientFileDescriptor);
+                checkActiveClientsCount();
                 return;
             }
         }
@@ -151,6 +182,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
         {
             Logger::warning("Received unknown protocol header from client");
             ServerSocket::closeClientConnection(clientFileDescriptor);
+            checkActiveClientsCount();
             return;
         }
 
@@ -211,25 +243,6 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             }
             case PacketType::LOCATION :
             {
-                // std::optional<NetworkMessage> message = serializer->deserialize(PacketType::LOCATION,
-                //                                                                 dataPacket.value().data);
-                // if (message.has_value())
-                // {
-                //     const LocationPoint3D& targetLocation = std::get<LocationPoint3D>(message.value());
-                //     Logger::info("Get a target point: " + convertLocationToString(targetLocation));
-
-                //     std::optional<BaseStationId> bestBaseStationId = mme->findBestBaseStation(targetLocation);
-                //     BaseStation* baseStation = mme->getBaseStationById(bestBaseStationId.value());
-
-                //     CoordinatesType distance = location.distanceTo(baseStation->getPosition());
-                //     Logger::info("A calculated distance from the base station (position "
-                //                 + convertLocationToString(baseStation->getPosition())
-                //                 + ") to the point " + convertLocationToString(targetLocation)
-                //                 + " is " + std::to_string(distance));
-
-                //     PacketTransporter::sendDistanceResponse(clientFileDescriptor, receivedProtocol, distance);
-                // }
-                // break;
                 std::optional<NetworkMessage> message = serializer->deserialize(PacketType::LOCATION,
                                                                                 dataPacket.value().data);
                 if (message.has_value())
@@ -270,6 +283,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     }
                     currentTmsi = std::nullopt;
                     ServerSocket::closeClientConnection(clientFileDescriptor);
+                    checkActiveClientsCount();
                     return; 
                 }
                 else
@@ -336,6 +350,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
         currentTmsi = std::nullopt;
     }
     ServerSocket::closeClientConnection(clientFileDescriptor);
+    checkActiveClientsCount();
 }
 
 void ServerApp::sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
@@ -510,8 +525,7 @@ void ServerApp::process()
         }
         return;
     }
-    Logger::info("Server is running. Listening for coordinates");
-    std::cout << "Server is running. ";
+    Logger::info("Server listening for coordinates");
 
     std::string input;
     while (isRunning)

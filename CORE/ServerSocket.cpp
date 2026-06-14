@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <cerrno>
+#include <cmath>
 
 ServerSocket::ServerSocket() :
     listenerSocketFileDescriptor(-1)
@@ -13,6 +14,21 @@ ServerSocket::ServerSocket() :
 ServerSocket::~ServerSocket()
 {
     stopListening();
+}
+
+bool ServerSocket::setAcceptTimeout(double seconds)
+{
+    struct timeval timeout;
+    timeout.tv_sec = static_cast<long>(seconds);
+    timeout.tv_usec = std::llround((seconds - timeout.tv_sec) * 1000000);
+    if (setsockopt(listenerSocketFileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    {
+        Logger::error("ServerSocket: failed when setting the timeout for input functions ("
+                      + std::string(std::strerror(errno)) + ")");
+        stopListening();
+        return false;
+    }
+    return true;
 }
 
 void ServerSocket::stopListening()
