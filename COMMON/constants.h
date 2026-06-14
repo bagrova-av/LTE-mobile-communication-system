@@ -13,4 +13,6 @@ inline constexpr size_t MIN_LENGTH_OF_MSISDN = 11;
 
 inline constexpr float MINIMAL_SIGNAL_STRENGTH = 0.0f;
 
+inline constexpr uint8_t SUCCESS_STATUS = 1;
+
 #endif

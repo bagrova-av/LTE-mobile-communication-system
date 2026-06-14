@@ -2,6 +2,7 @@
 #include "../../CORE/PacketTransporter.h"
 #include "../../COMMON/logging/Logger.h"
 #include "../../CORE/network/SerializerFactory.h"
+#include "../../COMMON/constants.h"
 
 #include <iostream>
 
@@ -255,10 +256,91 @@ void App::handleLocationTask(uint8_t protocolHeader,
     }
 }
 
-void App::handleIncomingSms(uint8_t protocolHeader,
-                            const SerializerInterface& serializer)
+void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
 {
-    
+    Protocol protocol;
+    std::optional<M_TMSI> m_tmsi;
+    {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        protocol = state.protocol;
+        m_tmsi = state.m_tmsi;
+    }
+    auto serializer = SerializerFactory::createSerializer(protocol);
+
+    switch (dataPacket.packetType)
+    {
+        case PacketType::SMS_RECEIVE :
+        {
+            const auto& message = serializer->deserialize(PacketType::SMS_RECEIVE, dataPacket.data);
+            if (message.has_value())
+            {
+                const auto& sms = std::get<SmsIncomingMessage>(message.value());
+                //saveToInbox(message.value());
+
+                responsesQueue.push("New SMS from " + sms.senderMsisdn + ":\n" + sms.text);
+
+                SmsDeliveryAcknowledge smsDeliveryAcknowledge{m_tmsi.value(),
+                                                              sms.smsId,
+                                                              SUCCESS_STATUS};
+                PacketTransporter::sendDataPacketRequest(clientSocket,
+                                                        static_cast<uint8_t>(protocol),
+                                                        PacketType::SMS_DELIVERY_ACKNOWLEDGE,
+                                                        serializer->serialize(smsDeliveryAcknowledge));
+            }
+            else
+            {
+                Logger::error("Failed to deserialize SMS_RECEIVE packet");
+                responsesQueue.push("Received deformed network data packet");
+            }
+            break;
+        }
+        case PacketType::SMS_STATUS :
+        {
+            const auto& message = serializer->deserialize(PacketType::SMS_STATUS, dataPacket.data);
+            if (message.has_value())
+            {
+                const auto& report = std::get<SmsStatusReport>(message.value());
+
+                SmsDeliveryStatus status;
+                std::string statusStr;
+                if (report.status == SUCCESS_STATUS)
+                {
+                    status = SmsDeliveryStatus::DELIVERED;
+                    statusStr = "DELIVERED";
+                }
+                else
+                {
+                    status = SmsDeliveryStatus::FAILED;
+                    statusStr = "FAILED";
+                }
+                smsStorage.updateSmsStatus(report.smsId, status);
+                responsesQueue.push("SMS with ID " + std::to_string(report.smsId)
+                                    + " is " + statusStr);
+                break;
+            }
+            else
+            {
+                Logger::error("Failed to deserialize SMS_STATUS packet");
+                responsesQueue.push("Received deformed network data packet");
+            }
+            break;
+        }
+        case PacketType::ERROR_MESSAGE :
+        {
+            const auto& message = serializer->deserialize(PacketType::ERROR_MESSAGE, dataPacket.data);
+            if (message.has_value())
+            {
+                responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
+                break;
+            }
+            else
+            {
+                Logger::error("Failed to deserialize ERROR_MESSAGE packet");
+                responsesQueue.push("Received deformed network data packet");
+            }
+            break;
+        }
+    }
 }
 
 void App::networkThreadWorker()
@@ -267,9 +349,17 @@ void App::networkThreadWorker()
 
     while (true)
     {
-        auto networkTask = networkTasks.pop();
+        auto networkTask = networkTasks.tryPop();
         if (!networkTask.has_value())
         {
+            if (clientSocket.isOpen())
+            {
+                std::optional<ReceivedDataPacket> incomingPacket;
+                while ( (incomingPacket = PacketTransporter::receiveDataPacketResponse(clientSocket)).has_value() )
+                {
+                    handleIncomingServerMessage(incomingPacket.value());
+                }
+            }
             break;
         }
 

@@ -189,7 +189,8 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     std::optional<M_TMSI> m_tmsi = mme->attachClient(attachRequest.imei,
                                                                      attachRequest.imsi,
                                                                      attachRequest.baseStationId,
-                                                                     clientFileDescriptor);
+                                                                     clientFileDescriptor,
+                                                                     *serializer);
                     if (m_tmsi.has_value())
                     {
                         currentTmsi = m_tmsi.value();

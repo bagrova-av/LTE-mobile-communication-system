@@ -80,7 +80,8 @@ std::optional<BaseStationId> MobilityManagmentEntity::findBestBaseStation(const 
 
 std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, const IMSI& imsi,
                                                             BaseStationId baseStationId, 
-                                                            int clientFileDescriptor)
+                                                            int clientFileDescriptor,
+                                                            const SerializerInterface& serializer)
 {
     std::lock_guard<std::mutex> lock(mmeMutex);
 
@@ -140,6 +141,17 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
     msisdnLookupTmsi.emplace(subscriberRecord.value().identityData.msisdn, m_tmsi);
     imsiLookupTmsi.emplace(imsi, m_tmsi);
     tmsiLookupImsi.emplace(m_tmsi,imsi);
+
+    // Checking messages for this client in SMSC
+    std::vector<SmsRecord> pendingMessages = smsCenter->popMessagesForReceiver(subscriberRecord->identityData.msisdn);
+    for (const auto& sms : pendingMessages)
+    {
+        SmsIncomingMessage smsIncomingMessage{m_tmsi, sms.senderMsisdn, sms.smsId, sms.text};
+        BufferedPacket packetForBuffer{PacketType::SMS_RECEIVE,
+                                       serializer.serialize(smsIncomingMessage)};
+        targetBaseStation->pushMessageToBuffer(m_tmsi, packetForBuffer);
+    }
+
     return m_tmsi;
 }
 

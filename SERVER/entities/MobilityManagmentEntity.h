@@ -49,7 +49,8 @@ public:
     std::optional<BaseStationId> findBestBaseStation(const LocationPoint3D& clientLocation);
 
     std::optional<M_TMSI> attachClient(const IMEI& imei, const IMSI& imsi,
-                                       BaseStationId baseStationId, int clientFileDescriptor);
+                                       BaseStationId baseStationId, int clientFileDescriptor,
+                                       const SerializerInterface& serializer);
     bool detachClient(M_TMSI m_tmsi);
     void startHandover(M_TMSI m_tmsi, const LocationPoint3D& newClientLocation);
     void sendSmsToSmsc();

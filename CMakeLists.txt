@@ -50,6 +50,7 @@ target_link_libraries(${PROJECT_NAME}Core PUBLIC
 
 add_library(${PROJECT_NAME}ClientLib STATIC
     APP/app/App.cpp
+    APP/app/SmsStorage.cpp
     APP/CommandHandler/CommandHandler.cpp
     APP/CommandHandler/SingleArgCommand.cpp
     APP/CommandHandler/CommandActive.cpp

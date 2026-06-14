@@ -12,6 +12,7 @@
 #include "../../CORE/ClientSocket.h"
 #include "../../CORE/network/SerializerInterface.h"
 #include "NetworkTask.h"
+#include "SmsStorage.h"
 
 class App
 {
@@ -23,6 +24,7 @@ private:
     ThreadSafeQueue<NetworkTask> networkTasks;
     ThreadSafeQueue<std::string> responsesQueue;
     std::thread networkThread;
+    SmsStorage smsStorage;
 
     void networkThreadWorker();
     void handleAttachTask(uint8_t protocolHeader,
@@ -32,8 +34,7 @@ private:
     void handleLocationTask(uint8_t protocolHeader,
                             const SerializerInterface& serializer,
                             const NetworkTask& networkTask);
-    void handleIncomingSms(uint8_t protocolHeader,
-                           const SerializerInterface& serializer);
+    void handleIncomingServerMessage(const ReceivedDataPacket& dataPacket);
     void pushTaskToQueue(TaskType type, Protocol protocol, TaskData data);
 
 public:
