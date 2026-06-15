@@ -294,15 +294,19 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
     auto smsRecord = smsCenter->markSmsAsDelivered(message.smsId);
     if (smsRecord.has_value())
     {
+        Logger::debug("MME: SMS with ID " + std::to_string(message.smsId)
+                       + " marked as delivered in the SMS center");
         BaseStation* baseStation = getBaseStationByTmsiWithoutMutex(smsRecord.value().senderTmsi);
         if (baseStation)
         {
             SmsStatusReport smsStatisReport{smsRecord.value().senderTmsi, message.smsId, message.status};
-            BufferedPacket packetForBuffer{PacketType::SMS_DELIVERY_ACKNOWLEDGE,
+            BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
                                            serializer.serialize(smsStatisReport)};
-            baseStation->pushMessageToBuffer(smsRecord.value().senderTmsi, packetForBuffer);
-            Logger::info("MME: Status report for SMS ID " + std::to_string(message.smsId)
-                        + " sent to the sender " + std::to_string(smsRecord->senderTmsi));
+            if (baseStation->pushMessageToBuffer(smsRecord.value().senderTmsi, packetForBuffer))
+            {
+                Logger::info("MME: Status report for SMS ID " + std::to_string(message.smsId)
+                + " sent to the sender " + std::to_string(smsRecord->senderTmsi));
+            }
         }
     }
 }

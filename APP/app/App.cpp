@@ -11,7 +11,8 @@ App::App(const AppConfig& appConfig, const AppState& initialState,
         const std::map<size_t, AddressBookEntry>& addressBook) :
     config(appConfig),
     state(initialState),
-    addressBook(addressBook)
+    addressBook(addressBook),
+    nextLocalSmsId(1)
 {
     Logger::info("Application initialized successfully");
     networkThread = std::thread(&App::networkThreadWorker, this);
@@ -118,7 +119,7 @@ void App::handleAttachTask(uint8_t protocolHeader,
                                                               serializer.serialize(attachRequest)))
                 {
                     std::lock_guard<std::mutex> lock(stateMutex);
-                    Logger::error("App: failed to send ATTACH request to the server");
+                    Logger::error("App: failed to send attach request to the server");
                     state.isActive = false;
                     return;
                 }
@@ -186,10 +187,17 @@ void App::handleDetachTask(uint8_t protocolHeader, const SerializerInterface& se
             m_tmsi = state.m_tmsi.value(); 
         }
         DetachRequest detachRequest{m_tmsi};
-        PacketTransporter::sendDataPacketRequest(clientSocket,
+        if (!PacketTransporter::sendDataPacketRequest(clientSocket,
                                                 protocolHeader,
                                                 PacketType::DETACH_REQUEST,
-                                                serializer.serialize(detachRequest));
+                                                serializer.serialize(detachRequest)))
+        {
+            clientSocket.disconnect();
+            std::lock_guard<std::mutex> lock(stateMutex);
+            Logger::error("App: failed to send detach request to the server");
+            state.isActive = false;
+            return;
+        }
     }
     clientSocket.disconnect();
 
@@ -320,6 +328,7 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
     {
         case PacketType::SMS_SUBMIT_ACCEPT :
         {
+            Logger::debug("Client received packet of type: SMS_SUBMIT_ACCEPT");
             const auto& message = serializer->deserialize(PacketType::SMS_SUBMIT_ACCEPT,
                                                           dataPacket.data);
             if (message.has_value())
@@ -329,6 +338,9 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
                 {
                     Logger::error("Failed to associate the local ID for the message with its global value");
                 }
+                Logger::debug("Local ID " + std::to_string(submitAccept.tempId)
+                            + " for the message associated with its global value "
+                             + std::to_string(submitAccept.globalId));
             }
             else
             {
@@ -339,6 +351,7 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
         }
         case PacketType::SMS_RECEIVE :
         {
+            Logger::debug("Client received packet of type: SMS_RECEIVE");
             const auto& message = serializer->deserialize(PacketType::SMS_RECEIVE,
                                                           dataPacket.data);
             if (message.has_value())
@@ -354,10 +367,14 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
                 SmsDeliveryAcknowledge smsDeliveryAcknowledge{m_tmsi.value(),
                                                               sms.smsId,
                                                               SmsDeliveryStatus::DELIVERED}; //TODO
-                PacketTransporter::sendDataPacketRequest(clientSocket,
+                if (!PacketTransporter::sendDataPacketRequest(clientSocket,
                                                         static_cast<uint8_t>(protocol),
                                                         PacketType::SMS_DELIVERY_ACKNOWLEDGE,
-                                                        serializer->serialize(smsDeliveryAcknowledge));
+                                                        serializer->serialize(smsDeliveryAcknowledge)))
+                {
+                    Logger::error("App: failed to send sms delivery acknowledge to the server");
+                    break;
+                }
             }
             else
             {
@@ -368,6 +385,7 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
         }
         case PacketType::SMS_STATUS :
         {
+            Logger::debug("Client received packet of type: SMS_STATUS");
             const auto& message = serializer->deserialize(PacketType::SMS_STATUS,
                                                           dataPacket.data);
             if (message.has_value())
@@ -387,6 +405,7 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
         }
         case PacketType::ERROR_MESSAGE :
         {
+            Logger::debug("Client received packet of type: ERROR_MESSAGE");
             const auto& message = serializer->deserialize(PacketType::ERROR_MESSAGE,
                                                          dataPacket.data);
             if (message.has_value())
@@ -424,6 +443,16 @@ void App::networkThreadWorker()
                 while ( (incomingPacket = PacketTransporter::receiveDataPacketResponse(clientSocket)).has_value() )
                 {
                     handleIncomingServerMessage(incomingPacket.value());
+                }
+                
+                if (errno != EAGAIN && errno != EWOULDBLOCK)
+                {
+                    Logger::warning("Server connection lost unexpectedly. Shutting down network activities");
+                    clientSocket.disconnect();
+
+                    std::lock_guard<std::mutex> lock(stateMutex);
+                    state.isActive = false;
+                    state.m_tmsi = std::nullopt;
                 }
             }
             //std::this_thread::sleep_for(std::chrono::milliseconds(10)); //TODO

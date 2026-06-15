@@ -164,7 +164,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
 {
     std::optional<M_TMSI> currentTmsi;
     Protocol receivedProtocol = Protocol::JSON;
-    while (true)
+    while (isRunning)
     {
         auto serializer = SerializerFactory::createSerializer(receivedProtocol);
         if (!serializer)

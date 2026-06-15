@@ -2,7 +2,8 @@
 #include "../../COMMON/logging/Logger.h"
 
 SmsCenter::SmsCenter(const SmsCenterConfig& config) :
-    config(config)
+    config(config),
+    nextSmsId(1)
 { }
 
 std::optional<std::vector<SmsId>> SmsCenter::storeMessage(M_TMSI senderTmsi, const MSISDN& senderMsisdn,
@@ -13,7 +14,8 @@ std::optional<std::vector<SmsId>> SmsCenter::storeMessage(M_TMSI senderTmsi, con
     size_t countParts = (fullText.length() + config.maxTextLength - 1) / config.maxTextLength;
     if (smsStorage.size() + countParts >= config.maxBufferCount)
     {
-        Logger::warning("SMS center: buffer full, cannot store message with " + std::to_string(countParts) + " parts");
+        Logger::warning("SMS center: buffer full, cannot store message with " 
+                        + std::to_string(countParts) + " parts");
         return std::nullopt;
     }
 
@@ -53,8 +55,8 @@ std::vector<SmsRecord> SmsCenter::popMessagesForReceiver(const MSISDN& receiverM
     {
         if (it->second.receiverMsisdn == receiverMsisdn)
         {
-            result.push_back(it->second);  // копируем запись
-            it = smsStorage.erase(it);      // удаляем элемент и получаем следующий итератор
+            result.push_back(it->second);
+            it = smsStorage.erase(it);
         }
         else
         {

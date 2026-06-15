@@ -22,7 +22,7 @@ bool CommandSentSms::execute(const std::vector<std::string>& args)
     }
 
     std::cout << "\n----- SENT MESSAGES -----" << '\n';
-    std::cout << std::left << std::setw(10) << "ID" << " | "
+    std::cout << std::left << std::setw(10) << "Global ID" << " | "
               << std::setw(MAX_LENGTH_OF_IMSI_IMEI_MSISDN) << "To" << " | "
               << std::setw(15) << "Status" << " | "
               << "Text" << '\n';
