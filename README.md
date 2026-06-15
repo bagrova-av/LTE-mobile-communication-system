@@ -39,7 +39,8 @@
 | `-l` | `--loc` | loc | array<float,3> (x, y, z) |
 | `-k` | `--config` | не задаётся | string |
 | `-m` | `--msisdn` | msisdn | string |
-| `-n` | `--nodes` | не задаётся | string |
+| `-b` | `--book` | не задаётся | string |
+| `-n` | `--nodes` | string | string |
 
 Порядок задания флагов в CLI не важен.
 
@@ -79,6 +80,9 @@
 | `MOVE <x> <y>` | Задание нового значения координатам `x`, `y` |
 | `MOVE <x> <y> <z>` | Задание нового значения координатам `x`, `y`, `z` |
 | `PROTOCOL <binary/json>` | Изменение формата передачи данных |
+| `SMS <receiverMSISDN> <text>` | Отправка сообщения получателю с номером receiverMSISDN |
+| `SMS-SENT` | Просмотр списка исходящих сообщений с указанием их статуса |
+| `SMS-RECEIVED` | Просмотр списка входящих сообщений |
 
 Если приложение-сервер запущено на том же порте, что и приложение-клиент, то при выполнении команды `MOVE` клиент, кроме обновления значений заданных координат, дополнительно передаёт по указанному формату (binary / json) серверу свою позицию и получает от сервера расстояние между ними.
 
@@ -154,6 +158,7 @@ graph TD
 │   │   ├── App.h | .cpp 
 │   │   ├── AppParams.h | .cpp
 │   │   ├── NetworkTask.h
+│   │   ├── SmsStorage.h | .cpp
 │   │   └── StartupParams.h | .cpp
 │   ├── CommandHandler
 │   │   ├── CommandActive.h | .cpp
@@ -162,6 +167,9 @@ graph TD
 │   │   ├── CommandInterface.h
 │   │   ├── CommandMove.h | .cpp
 │   │   ├── CommandProtocol.h | .cpp
+│   │   ├── CommandReceivedSms.h | .cpp
+│   │   ├── CommandSentSms.h | .cpp
+│   │   ├── CommandSms.h | .cpp
 │   │   └── SingleArgCommand.h | .cpp
 │   └── main.cpp
 ├── COMMON
@@ -178,14 +186,16 @@ graph TD
 ├── CORE
 │   ├── ClientSocket.h | .cpp
 │   ├── entitiesConfigs
+│   │   ├── AddressBookEntry.h
 │   │   ├── BaseStationConfig.h
 │   │   ├── EpcConfig.h
 │   │   ├── MmeConfig.h
+│   │   ├── SmsCenterConfig.h
 │   │   └── SubscriberRecord.h | .cpp
 │   ├── network
 │   │   ├── BinarySerializer.h | .cpp
 │   │   ├── JsonSerializer.h | .cpp
-│   │   ├── NetworkMessages.h
+│   │   ├── NetworkMessages.h | .cpp
 │   │   ├── SerializerFactory.h
 │   │   └── SerializerInterface.h
 │   ├── NetworkAddress.h | .cpp
@@ -199,19 +209,16 @@ graph TD
 │   ├── hlrEir.json
 │   ├── mme.json
 │   ├── nodes.json
-│   └── ue1.json
+│   └── ue([1-4]).json    # ue1.json,..., ue4.json
 ├── SERVER
 │   ├── entities
-│   │   ├── BaseStation.cpp
-│   │   ├── BaseStation.h
+│   │   ├── BaseStation.h | .cpp
 │   │   ├── ClientContext.h
 │   │   ├── hlrAndEir
-│   │   │   ├── HlrEirInterface.cpp
-│   │   │   ├── HlrEirInterface.h
-│   │   │   ├── JsonHlrEir.cpp
-│   │   │   └── JsonHlrEir.h
-│   │   ├── MobilityManagmentEntity.cpp
-│   │   └── MobilityManagmentEntity.h
+│   │   │   ├── HlrEirInterface.h | .cpp
+│   │   │   └── JsonHlrEir.h | .cpp
+│   │   ├── SmsCenter.h | .cpp
+│   │   └── MobilityManagmentEntity.h | .cpp
 │   ├── mainServer.cpp
 │   └── ServerApp.h | .cpp
 ├── runClients.sh
@@ -239,11 +246,14 @@ graph TD
 - **`NetworkAddress`** – класс сетевого адреса
 - **`BaseStationConfig`** – объект, хранящий конфигурацию базовой станции
 - **`EpcConfig`** – объект, хранящий общую конфигурацию имитации оборудования 
+- **`AddressBookEntry`** – объект, хранящий адресную книгу с MSISDN потенциальных адресатов
+- **`SmsCenterConfig`** – объект, хранящий конфигурацию  центра управления и временного хранения сообщений
 - **`MmeConfig`** – объект, хранящий конфигурацию узла управления мобильностью сети сотовой связи
 - **`SubscriberRecord`** – объект, хранящий данные из Home Location Register (БД оператора связи с информацией об абоненте мобильной сети) и Equipment Identity Register (регистр абонентского оборудования) об абоненте
 - **`BaseStation (eNode-B)`** – класс, моделирующий работу базовой станции LTE (отвечает за обслуживание зарегистрированных UE, хранение контекста подключённых абонентов и взаимодействие с MME)
 - **`JsonHlrEir`** – реализация подсистемы HLR(+EIR) на основе JSON-хранилища. Используется для проверки существования абонентов, а также хранения информации о текущем состоянии абонентов
 - **`MobilityManagmentEntity`** – класс, моделирующий работу узела управления мобильностью сети сотовой связи (реализует процедуры регистрации UE, проверку абонентов через HLR(+EIR), назначение временных идентификаторов M-TMSI, ведение временного регистра VLR, выбор обслуживающей базовой станции и маршрутизацию сетевых операций)
+- **`SmsCenter`** - класс, моделирующий работу центра управления и временного хранения сообщений
 - **`types`** – пользовательские типы данных, описывающие доменную модель (IPv4, IMSI, IMEI, Nodes, Port, Point3D, Protocol)
 - **`ThreadSafeQueue`**- потокобезопасная очередь
 - **`utils`** – вспомогательные функции
@@ -305,7 +315,8 @@ cmake --build . -jN
     "path": "../data/hlrEir.json"
   },
   "nodes_file": "../data/nodes.json",
-  "mme_config": "../data/mme.json"
+  "mme_config": "../data/mme.json",
+  "smsc_config": "../data/smsc.json"
 }
 ```
 
@@ -352,25 +363,47 @@ cmake --build . -jN
 ### Пример nodes.json
 ```json
 {
-  "baseStations": [
+  "base_stations": [
     {
       "id": 1,
-      "mmeId": 1,
+      "mme_id": 1,
       "position": [-100, 0, 0],
-      "coverageRadius": 120.0,
-      "maxSupportedConnections": 10,
-      "bufferBytesSizePerConnection": 1024
+      "coverage_radius": 120.0,
+      "max_supported_connections": 10,
+      "buffer_bytes_size_per_connection": 1024
     },
     {
       "id": 2,
-      "mmeId": 2,
+      "mme_id": 2,
       "position": [100, 0, 0],
-      "coverageRadius": 120.0,
-      "maxSupportedConnections": 10,
-      "bufferBytesSizePerConnection": 1024
+      "coverage_radius": 120.0,
+      "max_supported_connections": 10,
+      "buffer_bytes_size_per_connection": 1024
     }
   ]
 }
+```
+
+### Пример addressBook.json
+```json
+[
+  {
+    "imsi": "12345601112233",
+    "msisdn": "89991112233"
+  },
+  {
+    "imsi": "12345603334455",
+    "msisdn": "89993334455"
+  },
+  {
+    "imsi": "12345605556677",
+    "msisdn": "89995556677"
+  },
+  {
+    "imsi": "12345607778899",
+    "msisdn": "89997778899"
+  }
+]
 ```
 
 ### Примеры запуска
