@@ -284,9 +284,34 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     Logger::info("Get a target point: " + convertLocationToString(targetLocation));
 
                     auto bestBaseStationId = mme->findBestBaseStation(targetLocation);
-                    if (bestBaseStationId.has_value() && currentTmsi.has_value())
+                    if (currentTmsi.has_value())
                     {
-                        mme->startHandover(currentTmsi.value(), bestBaseStationId.value());
+                        if (bestBaseStationId.has_value())
+                        {
+                            mme->startHandover(currentTmsi.value(), bestBaseStationId.value());
+                        }
+                        else
+                        {
+                            Logger::info(std::format("Client with M_TMSI {} out of coverage. Forcing detach",
+                                                        currentTmsi.value()));
+                            sendErrorResponse(clientFileDescriptor, receivedProtocol,
+                                              "Network connection lost: out of coverage area");
+
+                            bool isDetached = mme->detachClient(currentTmsi.value());
+                            if (isDetached)
+                            {
+                                Logger::info("Client with M_TMSI = " + std::to_string(currentTmsi.value())
+                                            + " detached successfully");
+                            }
+                            else
+                            {
+                                Logger::info("Detach failed for M_TMSI = "
+                                            + std::to_string(currentTmsi.value()));
+                            }
+                            currentTmsi = std::nullopt;
+                            closeClientConnection(clientFileDescriptor);
+                            return;
+                        }
                     }
 
                     CoordinatesType distance = location.distanceTo(targetLocation);
@@ -323,12 +348,11 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     }
                     else
                     {
-                        Logger::info("Detach failed for TMSI = "
+                        Logger::info("Detach failed for M_TMSI = "
                                     + std::to_string(detachRequest.m_tmsi));
                     }
                     currentTmsi = std::nullopt;
-                    ServerSocket::closeClientConnection(clientFileDescriptor);
-                    checkActiveClientsCount();
+                    closeClientConnection(clientFileDescriptor);
                     return; 
                 }
                 else

@@ -100,6 +100,12 @@ BytesBuffer JsonSerializer::serialize(const NetworkMessage& message) const
 std::optional<NetworkMessage> JsonSerializer::deserialize(PacketType packetType,
                                                          const BytesBuffer& dataNetworkFormat) const
 {
+    if (dataNetworkFormat.empty())
+    {
+        Logger::error("JsonSerializer: received empty data bytes buffer");
+        return std::nullopt;
+    }
+
     json dataJSON = json::parse(std::string(dataNetworkFormat.begin(), dataNetworkFormat.end()));
 
     try

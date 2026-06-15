@@ -176,6 +176,12 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
 std::optional<NetworkMessage> BinarySerializer::deserialize(PacketType packetType,
                                                       const BytesBuffer& dataNetworkFormat) const
 {
+    if (dataNetworkFormat.empty())
+    {
+        Logger::error("BinarySerializer: received empty data bytes buffer");
+        return std::nullopt;
+    }
+
     size_t offset = 0;
     switch (packetType)
     {
