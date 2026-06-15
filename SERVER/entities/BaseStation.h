@@ -38,6 +38,9 @@ public:
     std::optional<BufferedPacket> popMessageFromBuffer(M_TMSI m_tmsi);
     bool sendDeliveryStatusToСlient(M_TMSI m_tmsi);
 
+    std::unique_ptr<ClientContext> releaseClientContext(M_TMSI m_tmsi);
+    void acceptHandoverContext(std::unique_ptr<ClientContext> clientContext);
+
     void setMME(MmeId otherMmeId);
 
     BaseStationId getId() const;

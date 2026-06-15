@@ -54,7 +54,7 @@ public:
                                        BaseStationId baseStationId, int clientFileDescriptor,
                                        const SerializerInterface& serializer);
     bool detachClient(M_TMSI m_tmsi);
-    void startHandover(M_TMSI m_tmsi, const LocationPoint3D& newClientLocation);
+    void startHandover(M_TMSI m_tmsi, BaseStationId newBaseStationId);
     void sendSmsToSmsc();
     std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request,
                                                        const SerializerInterface& serializer);

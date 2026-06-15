@@ -283,6 +283,12 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                     LocationPoint3D& targetLocation = std::get<LocationPoint3D>(message.value());
                     Logger::info("Get a target point: " + convertLocationToString(targetLocation));
 
+                    auto bestBaseStationId = mme->findBestBaseStation(targetLocation);
+                    if (bestBaseStationId.has_value() && currentTmsi.has_value())
+                    {
+                        mme->startHandover(currentTmsi.value(), bestBaseStationId.value());
+                    }
+
                     CoordinatesType distance = location.distanceTo(targetLocation);
                     Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
                                 + " is " + std::to_string(distance));

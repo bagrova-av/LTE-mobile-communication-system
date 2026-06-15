@@ -89,9 +89,15 @@ void MobilityManagmentEntity::cleanupExpiredMessages(const SerializerInterface& 
         
         for (const auto& sms : events.statusReports)
         {
-            SmsDeliveryStatus status = (sms.status == SmsStatus::WAITING_DELIVERY_REPORT) 
-                                       ? SmsDeliveryStatus::DELIVERED 
-                                       : SmsDeliveryStatus::FAILED;
+            SmsDeliveryStatus status;
+            if (sms.status == SmsStatus::WAITING_DELIVERY_REPORT)
+            {
+                status = SmsDeliveryStatus::DELIVERED;
+            }
+            else if (sms.status == SmsStatus::WAITING_FAILURE_REPORT)
+            {
+                status = SmsDeliveryStatus::FAILED;
+            }
             
             BaseStation* baseStation = getBaseStationByIdWithoutMutex(data.currentBaseSationId);
             if (baseStation)
@@ -295,9 +301,39 @@ bool MobilityManagmentEntity::detachClient(M_TMSI m_tmsi)
     return detachClientWithoutMutex(m_tmsi);
 }
 
-void MobilityManagmentEntity::startHandover(M_TMSI m_tmsi, const LocationPoint3D& newClientLocation)
+void MobilityManagmentEntity::startHandover(M_TMSI m_tmsi, BaseStationId newBaseStationId)
 {
-    //TO-DO
+    std::lock_guard<std::mutex> lock(mmeMutex);
+
+    auto itVlr = visitorLocationRegister.find(m_tmsi);
+    if (itVlr == visitorLocationRegister.end())
+    {
+        return;
+    }
+
+    BaseStationId oldBaseStationId = itVlr->second.currentBaseSationId;
+    if (oldBaseStationId == newBaseStationId)
+    {
+        return;
+    }
+
+    BaseStation* oldBaseStation = getBaseStationByIdWithoutMutex(oldBaseStationId);
+    BaseStation* newBaseStation = getBaseStationByIdWithoutMutex(newBaseStationId);
+
+    if (!oldBaseStation || !newBaseStation)
+    {
+        return;
+    }
+    auto clientContext = oldBaseStation->releaseClientContext(m_tmsi);
+    if (clientContext)
+    {
+        newBaseStation->acceptHandoverContext(std::move(clientContext));
+        itVlr->second.currentBaseSationId = newBaseStationId;
+        
+        Logger::info(std::format("MME: handover successful for client with M_TMSI = {} "
+                                "(old base station ID {} -> new base station ID {})", 
+                                    m_tmsi, oldBaseStationId, newBaseStationId));
+    }
 }
 
 void MobilityManagmentEntity::sendSmsToSmsc()
