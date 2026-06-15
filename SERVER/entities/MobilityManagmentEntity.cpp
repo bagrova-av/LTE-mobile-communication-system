@@ -102,10 +102,6 @@ void MobilityManagmentEntity::cleanupExpiredMessages(const SerializerInterface& 
                 baseStation->pushMessageToBuffer(sms.senderTmsi, packetForBuffer);
                 Logger::info(std::format("MME: Expired SMS {} report sent to sender {}", sms.smsId, sms.senderTmsi));
             }
-            SmsStatusReport report{ tmsi, sms.smsId, status };
-            if (auto* bs = getBaseStationByIdWithoutMutex(data.currentBaseSationId)) {
-                bs->pushMessageToBuffer(tmsi, {PacketType::SMS_STATUS, serializer.serialize(report)});
-            }
         }
     }
 
