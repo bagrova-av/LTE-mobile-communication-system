@@ -162,7 +162,7 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
     tmsiLookupImsi.emplace(m_tmsi,imsi);
 
     // Checking messages for this client in SMSC
-    std::vector<SmsRecord> pendingMessages = smsCenter->popMessagesForReceiver(subscriberRecord->identityData.msisdn);
+    std::vector<SmsRecord> pendingMessages = smsCenter->getMessagesForReceiver(subscriberRecord->identityData.msisdn);
     for (const auto& sms : pendingMessages)
     {
         SmsIncomingMessage smsIncomingMessage{m_tmsi, sms.senderMsisdn, sms.smsId, sms.text};

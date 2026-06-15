@@ -392,7 +392,7 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
             {
                 const auto& report = std::get<SmsStatusReport>(message.value());
                 smsStorage.updateSmsStatusByGlobalId(report.smsId, report.status);
-                responsesQueue.push("SMS with ID " + std::to_string(report.smsId)
+                responsesQueue.push("Delivery SMS with ID " + std::to_string(report.smsId)
                                     + " is " + convertSmsDeliveryStatusToString(report.status));
                 break;
             }

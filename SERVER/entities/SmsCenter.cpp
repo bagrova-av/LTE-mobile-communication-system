@@ -46,24 +46,19 @@ SmsId SmsCenter::storeOneMessageWithoutMutex(M_TMSI senderTmsi, const MSISDN& se
     return smsId;
 }
 
-std::vector<SmsRecord> SmsCenter::popMessagesForReceiver(const MSISDN& receiverMsisdn)
+std::vector<SmsRecord> SmsCenter::getMessagesForReceiver(const MSISDN& receiverMsisdn)
 {
     std::lock_guard<std::mutex> lock(smscMutex);
 
     std::vector<SmsRecord> result;
-    for (auto it = smsStorage.begin(); it != smsStorage.end(); )
+    for (auto& [id, smsRecord] : smsStorage)
     {
-        if (it->second.receiverMsisdn == receiverMsisdn)
+        if (smsRecord.receiverMsisdn == receiverMsisdn && smsRecord.status == SmsStatus::PENDING)
         {
-            result.push_back(it->second);
-            it = smsStorage.erase(it);
-        }
-        else
-        {
-            ++it;
+            result.push_back(smsRecord);
+            // IN_DELIVERY
         }
     }
-
     return result;
 }
 

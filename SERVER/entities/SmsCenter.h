@@ -49,7 +49,7 @@ public:
 
     std::optional<std::vector<SmsId>> storeMessage(M_TMSI senderTmsi, const MSISDN& senderMsisdn,
                                                 const MSISDN& receiverMsisdn, const std::string& fullText);            
-    std::vector<SmsRecord> popMessagesForReceiver(const MSISDN& receiverMmsisdn);
+    std::vector<SmsRecord> getMessagesForReceiver(const MSISDN& receiverMmsisdn);
     std::vector<SmsRecord> popExpiredMessages();
     std::optional<SmsRecord> markSmsAsDelivered(SmsId smsId);
 };
