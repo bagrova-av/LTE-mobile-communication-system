@@ -1,4 +1,5 @@
 #include "SmsStorage.h"
+#include "../../COMMON/logging/Logger.h"
 
 #include <algorithm>
 
@@ -17,6 +18,7 @@ bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus new
         return false;
     }
     smsRecord->status = newStatus;
+    Logger::debug("Updating status for SMS with global ID " + std::to_string(globalId));
     return true;
 }
 

@@ -9,7 +9,8 @@ StartupParams::StartupParams(const StartupParams& other) :
     imei(other.imei),
     msisdn(other.msisdn),
     initialLocation(other.initialLocation),
-    nodes(other.nodes)
+    nodes(other.nodes),
+    addressBookPath(other.addressBookPath)
 {
     Logger::debug("StartupParams: copy constructor called");
 }
@@ -21,7 +22,8 @@ StartupParams::StartupParams(StartupParams&& other) noexcept :
     imei(std::move(other.imei)),
     msisdn(std::move(other.msisdn)),
     initialLocation(std::move(other.initialLocation)),
-    nodes(std::move(other.nodes))
+    nodes(std::move(other.nodes)),
+    addressBookPath(std::move(other.addressBookPath))
 {
     Logger::debug("StartupParams: move constructor called");
 }
@@ -38,6 +40,7 @@ StartupParams& StartupParams::operator=(const StartupParams& other)
         msisdn = other.msisdn;
         initialLocation = other.initialLocation;
         nodes = other.nodes;
+        addressBookPath = other.addressBookPath;
     }
     return *this;
 }
@@ -54,6 +57,7 @@ StartupParams& StartupParams::operator=(StartupParams&& other) noexcept
         msisdn = std::move(other.msisdn);
         initialLocation = std::move(other.initialLocation);
         nodes = std::move(other.nodes);
+        addressBookPath = std::move(other.addressBookPath);
     }
     return *this;
 }

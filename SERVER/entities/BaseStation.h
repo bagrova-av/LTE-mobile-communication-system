@@ -12,12 +12,6 @@ class BaseStation
 {
 private:
     BaseStationConfig config;
-    // BaseStationId id;
-    // LocationPoint3D position;
-    // CoordinatesType coverageRadius;
-    // MmeId mmeId;
-    // size_t numberSupportedConnections;
-    // size_t bufferBytesSizePerConnection;
     std::unordered_map<M_TMSI, std::unique_ptr<ClientContext>> connectedClients;
     std::mutex bsMutex;
 
@@ -27,8 +21,6 @@ private:
     size_t getBufferPacketSize(const BufferedPacket& packet) const;
 
 public:
-    // BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
-    //             size_t numberSupportedConnections, size_t bufferBytesSizePerConnection);
     BaseStation(const BaseStationConfig& config);
 
     bool registerClient(M_TMSI m_tmsi, int clientFileDescriptor);
@@ -36,7 +28,9 @@ public:
     float calculateSignalStrength(const LocationPoint3D& clientLocation) const;
     bool pushMessageToBuffer(M_TMSI m_tmsi, const BufferedPacket& data);
     std::optional<BufferedPacket> popMessageFromBuffer(M_TMSI m_tmsi);
-    bool sendDeliveryStatusToСlient(M_TMSI m_tmsi);
+
+    std::unique_ptr<ClientContext> releaseClientContext(M_TMSI m_tmsi);
+    void acceptHandoverContext(std::unique_ptr<ClientContext> clientContext);
 
     void setMME(MmeId otherMmeId);
 

@@ -1,15 +1,5 @@
 #include "BaseStation.h"
 
-// BaseStation::BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
-//                         size_t numberSupportedConnections, size_t bufferBytesSizePerConnection) :
-//     id(id),
-//     mmeId(mmeId),
-//     position(position),
-//     coverageRadius(coverageRadius),
-//     numberSupportedConnections(numberSupportedConnections),
-//     bufferBytesSizePerConnection(bufferBytesSizePerConnection)
-// {}
-
 BaseStation::BaseStation(const BaseStationConfig& config) :
     config(config)
 { }
@@ -94,12 +84,6 @@ std::optional<BufferedPacket> BaseStation::popMessageFromBuffer(M_TMSI m_tmsi)
     return data;
 }
 
-bool BaseStation::sendDeliveryStatusToСlient(M_TMSI m_tmsi)
-{
-    //TO-DO
-    return true;
-}
-
 bool BaseStation::hasEnoughSpaceInBufferWithoutMutex(ClientContext* clientContext,
                                                     const BufferedPacket& data) const
 {
@@ -114,4 +98,30 @@ bool BaseStation::hasEnoughSpaceInBufferWithoutMutex(ClientContext* clientContex
 size_t BaseStation::getBufferPacketSize(const BufferedPacket& packet) const
 {
     return sizeof(packet.packetType) + packet.data.size();
+}
+
+std::unique_ptr<ClientContext> BaseStation::releaseClientContext(M_TMSI m_tmsi)
+{
+    std::lock_guard<std::mutex> lock(bsMutex);
+
+    auto it = connectedClients.find(m_tmsi);
+    if (it == connectedClients.end())
+    {
+        return nullptr;
+    }
+    
+    auto clientContext = std::move(it->second);
+    connectedClients.erase(it);
+    return clientContext;
+}
+
+void BaseStation::acceptHandoverContext(std::unique_ptr<ClientContext> clientContext)
+{
+    if (!clientContext)
+    {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(bsMutex);
+    connectedClients.emplace(clientContext->m_tmsi, std::move(clientContext));
 }

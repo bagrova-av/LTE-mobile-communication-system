@@ -48,8 +48,6 @@ bool parseEpcJSON(const std::string& configPath, EpcConfig& epcConfig);
 
 bool parseBaseStationsJSON(const std::string& configPath, std::vector<BaseStationConfig>& bsConfigs);
 
-//bool parseHlrEirRecordsJSON(const std::string& configPath, std::vector<HlrEirRecord>& records);
-
 bool parseMmeJSON(const std::string& configPath, std::vector<MmeConfig>& mmes);
 
 bool parseSmsCenterJSON(const std::string& configPath, SmsCenterConfig& smsCenterConfig);

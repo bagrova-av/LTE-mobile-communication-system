@@ -100,10 +100,15 @@ BytesBuffer JsonSerializer::serialize(const NetworkMessage& message) const
 std::optional<NetworkMessage> JsonSerializer::deserialize(PacketType packetType,
                                                          const BytesBuffer& dataNetworkFormat) const
 {
-    json dataJSON = json::parse(std::string(dataNetworkFormat.begin(), dataNetworkFormat.end()));
+    if (dataNetworkFormat.empty())
+    {
+        Logger::error("JsonSerializer: received empty data bytes buffer");
+        return std::nullopt;
+    }
 
     try
     {
+        json dataJSON = json::parse(std::string(dataNetworkFormat.begin(), dataNetworkFormat.end()));
         switch (packetType)
         {
             case PacketType::RRC_SEARCH :
@@ -192,24 +197,3 @@ std::optional<NetworkMessage> JsonSerializer::deserialize(PacketType packetType,
         return std::nullopt;
     }
 }
-
-// BytesBuffer JsonSerializer::serialize(const LocationPoint3D& point) const
-// {
-//     json dataJSON;
-//     dataJSON["x"] = point.x;
-//     dataJSON["y"] = point.y;
-//     dataJSON["z"] = point.z;
-
-//     std::string serializedData = dataJSON.dump();
-//     return BytesBuffer(serializedData.begin(), serializedData.end());
-// }
-
-// std::optional<LocationPoint3D> JsonSerializer::deserialize(const BytesBuffer& dataNetworkFormat) const
-// {
-//     json dataJSON = json::parse(std::string(dataNetworkFormat.begin(), dataNetworkFormat.end()));
-    
-//     return LocationPoint3D{ dataJSON["x"],
-//                             dataJSON["y"],
-//                             dataJSON["z"]
-//     };
-// }

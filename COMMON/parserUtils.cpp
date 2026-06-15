@@ -400,7 +400,9 @@ bool parseEpcJSON(const std::string& configPath, EpcConfig& epcConfig)
             Logger::error("Validation error: simtel time to life must be a positive integer value (in seconds)");
             return false;
         }
-        epcConfig.simtelTtl = data["simtel_ttl_sec"].get<Seconds>();
+        Seconds simtelTtlSec = data["simtel_ttl_sec"].get<Seconds>();
+        //epcConfig.simtelTtlSec = data["simtel_ttl_sec"].get<Seconds>();
+        epcConfig.simtelTtlSec = std::chrono::seconds(simtelTtlSec);
         
         if (!data.contains("hlrEir"))
         {
@@ -745,7 +747,8 @@ bool parseSmsCenterJSON(const std::string& configPath, SmsCenterConfig& smsCente
             Logger::error("Validation error: SMS time to life must be a positive integer value (in milliseconds)");
             return false;
         }
-        smsCenterConfig.smsTtlMs = data["sms_ttl_ms"].get<Milliseconds>();
+        Milliseconds smsTtlMs = data["sms_ttl_ms"].get<Milliseconds>();
+        smsCenterConfig.smsTtlMs = std::chrono::milliseconds(smsTtlMs);
     }
     catch(const std::exception& ex)
     {

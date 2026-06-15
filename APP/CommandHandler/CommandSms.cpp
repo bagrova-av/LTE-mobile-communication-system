@@ -72,6 +72,12 @@ bool CommandSms::execute(const std::vector<std::string>& args)
         }
     }
 
+    if (!app.getStatus())
+    {
+        std::cout << "Error: you are offline. Use the command 'ACTIVE true' to connect first" << std::endl;
+        return false;
+    }
+
     SmsId tempId = app.generateNextLocalSmsId();
     app.addSentSmsRecord(SentSmsRecord{tempId, std::nullopt,
                                        receiverMsisdn, text,

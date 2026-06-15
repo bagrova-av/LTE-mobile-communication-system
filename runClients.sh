@@ -6,7 +6,7 @@ MAX_CLIENTS=10
 usage() {
     echo "Usage: $0 [N]"
     echo "  N - number of clients (1-$MAX_CLIENTS, default: 3)"
-    echo "Example: $0 5"
+    echo "Example: $0 2"
 }
 
 if [ ! -f "$CLIENT_EXEC" ]; then
@@ -14,7 +14,7 @@ if [ ! -f "$CLIENT_EXEC" ]; then
     exit 1
 fi
 
-NUM_CLIENTS=3
+NUM_CLIENTS=4
 
 if [ $# -gt 0 ]; then
     if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
@@ -69,7 +69,7 @@ launchInTerminal () {
 
 echo "Starting $NUM_CLIENTS client(s)"
 for i in $(seq 1 $NUM_CLIENTS); do
-    launchInTerminal "$CLIENT_EXEC --config data/config$i.json --nodes node$i" "Client $i"
+    launchInTerminal "$CLIENT_EXEC --config data/ue$i.json --book data/addressBook.json --nodes node$i" "Client $i"
     sleep 1
 done
 echo "$NUM_CLIENTS client(s) launched successfully"

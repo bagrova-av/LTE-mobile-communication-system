@@ -1,9 +1,16 @@
 #include "CommandReceivedSms.h"
+#include "../../COMMON/logging/Logger.h"
 
 #include <iostream>
 
 bool CommandReceivedSms::execute(const std::vector<std::string>& args)
 {
+    if (!args.empty())
+    {
+        Logger::warning("Error: the SMS-RECEIVED command does not take any arguments");
+        return false;
+    }
+
     std::vector<ReceivedSmsRecord> smsList = app.getReceivedSmsHistory();
     if (smsList.empty())
     {
@@ -11,7 +18,7 @@ bool CommandReceivedSms::execute(const std::vector<std::string>& args)
         return true;
     }
 
-    std::cout << "\n--- INBOX ---" << '\n';
+    std::cout << "\n----- RECEIVED MESSAGES -----" << '\n';
     for (const auto& sms : smsList)
     {
         std::cout << "From: " << sms.senderMsisdn

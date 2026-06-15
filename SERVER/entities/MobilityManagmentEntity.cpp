@@ -78,6 +78,40 @@ std::optional<BaseStationId> MobilityManagmentEntity::findBestBaseStation(const 
     return bestBaseStationId;
 }
 
+void MobilityManagmentEntity::cleanupExpiredMessages(const SerializerInterface& serializer)
+{
+    smsCenter->processExpiredMessages();
+
+    std::lock_guard<std::mutex> lock(mmeMutex);
+    for (auto& [tmsi, data] : visitorLocationRegister)
+    {
+        const auto& events = smsCenter->popEventsForSubscriber(data.msisdn);
+        
+        for (const auto& sms : events.statusReports)
+        {
+            SmsDeliveryStatus status;
+            if (sms.status == SmsStatus::WAITING_DELIVERY_REPORT)
+            {
+                status = SmsDeliveryStatus::DELIVERED;
+            }
+            else if (sms.status == SmsStatus::WAITING_FAILURE_REPORT)
+            {
+                status = SmsDeliveryStatus::FAILED;
+            }
+            
+            BaseStation* baseStation = getBaseStationByIdWithoutMutex(data.currentBaseSationId);
+            if (baseStation)
+            {
+                SmsStatusReport smsStatusReport{sms.senderTmsi, sms.smsId, status};
+                BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
+                                              serializer.serialize(smsStatusReport)};
+                baseStation->pushMessageToBuffer(sms.senderTmsi, packetForBuffer);
+                Logger::info(std::format("MME: Expired SMS {} report sent to sender {}", sms.smsId, sms.senderTmsi));
+            }
+        }
+    }
+}
+
 std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, const IMSI& imsi,
                                                             BaseStationId baseStationId, 
                                                             int clientFileDescriptor,
@@ -143,12 +177,29 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
     tmsiLookupImsi.emplace(m_tmsi,imsi);
 
     // Checking messages for this client in SMSC
-    std::vector<SmsRecord> pendingMessages = smsCenter->popMessagesForReceiver(subscriberRecord->identityData.msisdn);
-    for (const auto& sms : pendingMessages)
+    auto events = smsCenter->popEventsForSubscriber(subscriberRecord->identityData.msisdn);
+    for (const auto& sms : events.incomingMessages)
     {
         SmsIncomingMessage smsIncomingMessage{m_tmsi, sms.senderMsisdn, sms.smsId, sms.text};
         BufferedPacket packetForBuffer{PacketType::SMS_RECEIVE,
                                        serializer.serialize(smsIncomingMessage)};
+        targetBaseStation->pushMessageToBuffer(m_tmsi, packetForBuffer);
+    }
+
+    for (const auto& sms : events.statusReports)
+    {
+        SmsDeliveryStatus status;
+        if (sms.status == SmsStatus::WAITING_DELIVERY_REPORT)
+        {
+            status = SmsDeliveryStatus::DELIVERED;
+        }
+        else if (sms.status == SmsStatus::WAITING_FAILURE_REPORT)
+        {
+            status = SmsDeliveryStatus::FAILED;
+        }
+        SmsStatusReport report{m_tmsi, sms.smsId, status};
+        BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
+                                       serializer.serialize(report)};
         targetBaseStation->pushMessageToBuffer(m_tmsi, packetForBuffer);
     }
 
@@ -192,14 +243,39 @@ bool MobilityManagmentEntity::detachClient(M_TMSI m_tmsi)
     return detachClientWithoutMutex(m_tmsi);
 }
 
-void MobilityManagmentEntity::startHandover(M_TMSI m_tmsi, const LocationPoint3D& newClientLocation)
+void MobilityManagmentEntity::startHandover(M_TMSI m_tmsi, BaseStationId newBaseStationId)
 {
-    //TO-DO
-}
+    std::lock_guard<std::mutex> lock(mmeMutex);
 
-void MobilityManagmentEntity::sendSmsToSmsc()
-{
-    //TO-DO
+    auto itVlr = visitorLocationRegister.find(m_tmsi);
+    if (itVlr == visitorLocationRegister.end())
+    {
+        return;
+    }
+
+    BaseStationId oldBaseStationId = itVlr->second.currentBaseSationId;
+    if (oldBaseStationId == newBaseStationId)
+    {
+        return;
+    }
+
+    BaseStation* oldBaseStation = getBaseStationByIdWithoutMutex(oldBaseStationId);
+    BaseStation* newBaseStation = getBaseStationByIdWithoutMutex(newBaseStationId);
+
+    if (!oldBaseStation || !newBaseStation)
+    {
+        return;
+    }
+    auto clientContext = oldBaseStation->releaseClientContext(m_tmsi);
+    if (clientContext)
+    {
+        newBaseStation->acceptHandoverContext(std::move(clientContext));
+        itVlr->second.currentBaseSationId = newBaseStationId;
+        
+        Logger::info(std::format("MME: handover successful for client with M_TMSI = {} "
+                                "(old base station ID {} -> new base station ID {})", 
+                                    m_tmsi, oldBaseStationId, newBaseStationId));
+    }
 }
 
 std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(const SmsSendRequest& request,
@@ -232,8 +308,6 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
     auto routingInfo = findRoutingInfoForSms(request.receiverMsisdn);
     if (!routingInfo.has_value())
     {
-        // Logger::info("MME: The recipient " + request.receiverMsisdn + "is not registered in the VLR now, "
-        //             "so it is impossible to deliver him SMS");
         Logger::info("MME: receiver " + request.receiverMsisdn + " offline. "
                         "SMS stored in SMSC");
         return smsIds;
@@ -272,18 +346,37 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
 {
     std::lock_guard<std::mutex> lock(mmeMutex);
 
-    auto smsRecord = smsCenter->markSmsAsDelivered(message.smsId);
-    if (smsRecord.has_value())
+    auto smsRecord = smsCenter->getSmsRecordById(message.smsId);
+    if (!smsRecord.has_value())
     {
-        BaseStation* baseStation = getBaseStationByTmsiWithoutMutex(smsRecord.value().senderTmsi);
-        if (baseStation)
+        return;
+    }
+
+    auto it = visitorLocationRegister.find(smsRecord->senderTmsi);
+    bool isSenderOnline = false;
+    if (it != visitorLocationRegister.end())
+    {
+        isSenderOnline = true;
+    }
+
+    AcknowledgeResult result = smsCenter->processDeliveryAcknowledge(message.smsId, isSenderOnline);
+    if (!result.found || !isSenderOnline)
+    {
+        return;
+    }
+
+    Logger::debug("MME: SMS with ID " + std::to_string(message.smsId)
+                  + " marked as waiting delivery report in the SMS center");
+    BaseStation* baseStation = getBaseStationByTmsiWithoutMutex(smsRecord.value().senderTmsi);
+    if (baseStation)
+    {
+        SmsStatusReport smsStatusReport{smsRecord.value().senderTmsi, message.smsId, message.status};
+        BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
+                                        serializer.serialize(smsStatusReport)};
+        if (baseStation->pushMessageToBuffer(smsRecord.value().senderTmsi, packetForBuffer))
         {
-            SmsStatusReport smsStatisReport{smsRecord.value().senderTmsi, message.smsId, message.status};
-            BufferedPacket packetForBuffer{PacketType::SMS_DELIVERY_ACKNOWLEDGE,
-                                           serializer.serialize(smsStatisReport)};
-            baseStation->pushMessageToBuffer(smsRecord.value().senderTmsi, packetForBuffer);
             Logger::info("MME: Status report for SMS ID " + std::to_string(message.smsId)
-                        + " sent to the sender " + std::to_string(smsRecord->senderTmsi));
+            + " sent to the sender " + std::to_string(smsRecord->senderTmsi));
         }
     }
 }

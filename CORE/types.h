@@ -25,7 +25,7 @@ using Port = uint16_t;
 using BaseStationId = uint32_t;
 using MmeId = size_t;
 using SmsId = uint32_t;
-using Seconds = float;
+using Seconds = long long;
 using Milliseconds = long long;
 
 using BytesBuffer = std::vector<uint8_t>;
