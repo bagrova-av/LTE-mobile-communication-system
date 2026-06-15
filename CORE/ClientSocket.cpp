@@ -118,6 +118,7 @@ std::optional<BytesBuffer> ClientSocket::receiveAllData(size_t bytesCount) const
                                 0);
         if (received == 0)
         {
+            errno = 0;
             return std::nullopt;
         }
         if (received == -1)
