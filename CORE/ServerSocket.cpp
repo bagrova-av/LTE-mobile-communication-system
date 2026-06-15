@@ -182,7 +182,6 @@ std::optional<BytesBuffer> ServerSocket::receiveAllData(int clientFileDescriptor
                                 0);
         if (received == 0)
         {
-            //Logger::warning("ServerSocket: the client disconnected before data transfer completed");
             return std::nullopt;
         }
         if (received == -1)

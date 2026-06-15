@@ -139,38 +139,6 @@ void SmsCenter::processExpiredMessages()
     }
 }
 
-void SmsCenter::processExpiredMessages(const std::function<bool(M_TMSI)>& isSenderOnline)
-{
-    std::lock_guard<std::mutex> lock(smscMutex);
-
-    auto now = std::chrono::system_clock::now();
-
-    for (auto it = smsStorage.begin(); it != smsStorage.end(); )
-    {
-        auto& record = it->second;
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.createdTime);
-        if (record.status == SmsStatus::PENDING && duration > config.smsTtlMs)
-        {
-            if (isSenderOnline(record.senderTmsi))
-            {
-                record.status = SmsStatus::WAITING_FAILURE_REPORT;
-                ++it; 
-            }
-            else
-            {
-                record.status = SmsStatus::WAITING_FAILURE_REPORT;
-                ++it;
-            }
-            // expiredSms.push_back(record);
-            // it = smsStorage.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
-}
-
 std::optional<SmsRecord> SmsCenter::markSmsAsDelivered(SmsId smsId)
 {
     std::lock_guard<std::mutex> lock(smscMutex);

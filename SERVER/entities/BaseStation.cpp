@@ -1,15 +1,5 @@
 #include "BaseStation.h"
 
-// BaseStation::BaseStation(BaseStationId id, MmeId mmeId, const LocationPoint3D& position, CoordinatesType coverageRadius,
-//                         size_t numberSupportedConnections, size_t bufferBytesSizePerConnection) :
-//     id(id),
-//     mmeId(mmeId),
-//     position(position),
-//     coverageRadius(coverageRadius),
-//     numberSupportedConnections(numberSupportedConnections),
-//     bufferBytesSizePerConnection(bufferBytesSizePerConnection)
-// {}
-
 BaseStation::BaseStation(const BaseStationConfig& config) :
     config(config)
 { }
@@ -92,12 +82,6 @@ std::optional<BufferedPacket> BaseStation::popMessageFromBuffer(M_TMSI m_tmsi)
     }
     clientContext->currentBufferBytesSize -= getBufferPacketSize(data.value());
     return data;
-}
-
-bool BaseStation::sendDeliveryStatusToСlient(M_TMSI m_tmsi)
-{
-    //TO-DO
-    return true;
 }
 
 bool BaseStation::hasEnoughSpaceInBufferWithoutMutex(ClientContext* clientContext,

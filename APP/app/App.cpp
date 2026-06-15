@@ -445,7 +445,6 @@ void App::networkThreadWorker()
                     handleIncomingServerMessage(incomingPacket.value());
                 }
                 
-                //if (errno != EAGAIN && errno != EWOULDBLOCK)
                 if (errno == 0)
                 {
                     clientSocket.disconnect();
@@ -455,7 +454,6 @@ void App::networkThreadWorker()
                     state.m_tmsi = std::nullopt;
                 }
             }
-            //std::this_thread::sleep_for(std::chrono::milliseconds(10)); //TODO
             continue;
         }
 

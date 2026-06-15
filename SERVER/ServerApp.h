@@ -43,10 +43,27 @@ private:
     void sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
                               const std::optional<M_TMSI>& currentTmsi);
 
+    bool handleRrcSearch(int clientFileDescriptor, Protocol protocol,
+                        const SerializerInterface& serializer, const BytesBuffer& data);
+    bool handleAttachRequest(int clientFileDescriptor, Protocol protocol,
+                              const SerializerInterface& serializer, const BytesBuffer& data,
+                              std::optional<M_TMSI>& currentTmsi);
+    bool handleLocationRequest(int clientFileDescriptor, Protocol protocol,
+                               const SerializerInterface& serializer, const BytesBuffer& data,
+                               std::optional<M_TMSI>& currentTmsi);
+    bool handleDetachRequest(int clientFileDescriptor, Protocol protocol,
+                              const SerializerInterface& serializer, const BytesBuffer& data,
+                              std::optional<M_TMSI>& currentTmsi);
+    bool handleSmsSendRequest(int clientFileDescriptor, Protocol protocol,
+                              const SerializerInterface& serializer, const BytesBuffer& data);
+    bool handleSmsDeliveryAknowledge(int clientFileDescriptor, Protocol protocol,
+                                     const SerializerInterface& serializer, const BytesBuffer& data);
+
 public:
     ServerApp(uint16_t port, const LocationPoint3D& location, const EpcConfig& epcConfig);
     
     void process();
+    void stop();
 
     Port getPort() const;
     const LocationPoint3D& getLocation() const;
@@ -56,9 +73,15 @@ inline Port ServerApp::getPort() const
 {
     return listeningPort;
 }
+
 inline const LocationPoint3D& ServerApp::getLocation() const
 {
     return location;
+}
+
+inline void ServerApp::stop()
+{
+    isRunning = false;
 }
 
 #endif

@@ -22,7 +22,8 @@ bool CommandMove::execute(const std::vector<std::string>& args)
         auto component = convertFromString<CoordinatesType>(arg);
         if (!component.has_value())
         {
-            Logger::warning("Validation error: a location coordinate '" + arg + "' contains non-numeric characters");
+            Logger::warning("Validation error: a location coordinate '" + arg
+                            + "' contains non-numeric characters");
             return false;
         }
         numericComponents.push_back(component.value());
@@ -40,7 +41,8 @@ bool CommandMove::execute(const std::vector<std::string>& args)
     else
     {
         app.setLocation(newLocation, flags);
-        Logger::info("Location updated from " + convertLocationToString(currentLocation) + " to " + convertLocationToString(app.getLocation()));
+        Logger::info("Location updated from " + convertLocationToString(currentLocation)
+                    + " to " + convertLocationToString(app.getLocation()));
     }
 
     app.sendLocationToServerAsync(app.getLocation());

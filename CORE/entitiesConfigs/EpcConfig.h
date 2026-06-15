@@ -15,7 +15,7 @@ struct HlrEirConfig
 
 struct EpcConfig
 {
-    std::chrono::seconds simtelTtlSec;//Seconds simtelTtlSec;
+    std::chrono::seconds simtelTtlSec;
     HlrEirConfig hlrEir;
     std::string nodesConfigFile;
     std::string mmeConfigFile;

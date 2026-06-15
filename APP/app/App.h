@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <map>
 
 #include "../../CORE/types.h"
 #include "AppParams.h"
@@ -13,7 +14,6 @@
 #include "../../CORE/network/SerializerInterface.h"
 #include "NetworkTask.h"
 #include "SmsStorage.h"
-#include "map"
 #include "../../CORE/entitiesConfigs/AddressBookEntry.h"
 
 class App

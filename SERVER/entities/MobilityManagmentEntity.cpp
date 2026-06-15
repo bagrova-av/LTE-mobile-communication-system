@@ -110,55 +110,6 @@ void MobilityManagmentEntity::cleanupExpiredMessages(const SerializerInterface& 
             }
         }
     }
-
-    // smsCenter->processExpiredMessages([this](M_TMSI m_tmsi)
-    //                                 {
-    //                                     std::lock_guard<std::mutex> lock(mmeMutex);
-    //                                     return visitorLocationRegister.find(m_tmsi) != visitorLocationRegister.end();
-    //                                 }
-    // );
-
-    // std::lock_guard<std::mutex> lock(mmeMutex);
-    // for (auto itVlr = visitorLocationRegister.begin(); itVlr != visitorLocationRegister.end(); ++itVlr)
-    // {
-    //     M_TMSI currentOnlineTmsi = itVlr->first;
-    //     MSISDN currentMsisdn = itVlr->second.msisdn;
-
-    //     auto events = smsCenter->popEventsForSubscriber(currentMsisdn);
-        
-    //     for (const auto& sms : events.statusReports)
-    //     {
-    //         if (sms.status == SmsStatus::WAITING_FAILURE_REPORT)
-    //         {
-    //             BaseStation* baseStation = getBaseStationById(itVlr->second.currentBaseSationId);
-    //             if (baseStation)
-    //             {
-    //                 SmsStatusReport smsStatusReport{sms.senderTmsi, sms.smsId, SmsDeliveryStatus::FAILED};
-    //                 BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
-    //                                             serializer.serialize(smsStatusReport)};
-    //                 baseStation->pushMessageToBuffer(sms.senderTmsi, packetForBuffer);
-    //                 Logger::info(std::format("MME: Expired SMS {} report sent to sender {}", sms.smsId, currentOnlineTmsi));
-    //             }
-    //         }
-    //     }
-    // }
-
-
-    // std::vector<SmsRecord> expiredSms = smsCenter->processExpiredMessages();
-    // for (const auto& sms : expiredSms)
-    // {
-    //     BaseStation* baseStation = getBaseStationByTmsi(sms.senderTmsi);
-    //     if (!baseStation)
-    //     {
-    //         Logger::warning("Error: failed to send the client with M_TMSI = "
-    //                         + std::to_string(sms.senderTmsi)
-    //                         + " sms status report about SMS ID" + std::to_string(sms.smsId));
-    //     }
-    //     SmsStatusReport smsStatusReport{sms.senderTmsi, sms.smsId, SmsDeliveryStatus::FAILED};
-    //     BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
-    //                                    serializer.serialize(smsStatusReport)};
-    //     baseStation->pushMessageToBuffer(sms.senderTmsi, packetForBuffer);
-    // }
 }
 
 std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, const IMSI& imsi,
@@ -252,15 +203,6 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
         targetBaseStation->pushMessageToBuffer(m_tmsi, packetForBuffer);
     }
 
-    // std::vector<SmsRecord> pendingMessages = smsCenter->getMessagesForReceiver(subscriberRecord->identityData.msisdn);
-    // for (const auto& sms : pendingMessages)
-    // {
-    //     SmsIncomingMessage smsIncomingMessage{m_tmsi, sms.senderMsisdn, sms.smsId, sms.text};
-    //     BufferedPacket packetForBuffer{PacketType::SMS_RECEIVE,
-    //                                    serializer.serialize(smsIncomingMessage)};
-    //     targetBaseStation->pushMessageToBuffer(m_tmsi, packetForBuffer);
-    // }
-
     return m_tmsi;
 }
 
@@ -336,11 +278,6 @@ void MobilityManagmentEntity::startHandover(M_TMSI m_tmsi, BaseStationId newBase
     }
 }
 
-void MobilityManagmentEntity::sendSmsToSmsc()
-{
-    //TO-DO
-}
-
 std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(const SmsSendRequest& request,
                                                                             const SerializerInterface& serializer)
 {
@@ -371,8 +308,6 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
     auto routingInfo = findRoutingInfoForSms(request.receiverMsisdn);
     if (!routingInfo.has_value())
     {
-        // Logger::info("MME: The recipient " + request.receiverMsisdn + "is not registered in the VLR now, "
-        //             "so it is impossible to deliver him SMS");
         Logger::info("MME: receiver " + request.receiverMsisdn + " offline. "
                         "SMS stored in SMSC");
         return smsIds;
@@ -444,25 +379,6 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
             + " sent to the sender " + std::to_string(smsRecord->senderTmsi));
         }
     }
-
-    // auto smsRecord = smsCenter->markSmsAsDelivered(message.smsId);
-    // if (smsRecord.has_value())
-    // {
-    //     Logger::debug("MME: SMS with ID " + std::to_string(message.smsId)
-    //                    + " marked as delivered in the SMS center");
-    //     BaseStation* baseStation = getBaseStationByTmsiWithoutMutex(smsRecord.value().senderTmsi);
-    //     if (baseStation)
-    //     {
-    //         SmsStatusReport smsStatusReport{smsRecord.value().senderTmsi, message.smsId, message.status};
-    //         BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
-    //                                        serializer.serialize(smsStatusReport)};
-    //         if (baseStation->pushMessageToBuffer(smsRecord.value().senderTmsi, packetForBuffer))
-    //         {
-    //             Logger::info("MME: Status report for SMS ID " + std::to_string(message.smsId)
-    //             + " sent to the sender " + std::to_string(smsRecord->senderTmsi));
-    //         }
-    //     }
-    // }
 }
 
 std::optional<std::pair<M_TMSI, BaseStationId>> MobilityManagmentEntity::findRoutingInfoForSms(const MSISDN& receiverMsisdn)

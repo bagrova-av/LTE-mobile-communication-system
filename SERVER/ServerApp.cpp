@@ -13,6 +13,7 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location, const EpcCo
     listeningPort(port),
     location(location),
     epcConfig(epcConfig),
+    //isRunning(true),
     activeClientsCount(0),
     lastClientDisconnectedTime(std::chrono::system_clock::now()),
     serverSocket()
@@ -205,222 +206,252 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
         {
             case PacketType::RRC_SEARCH :
             {
-                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::RRC_SEARCH,
-                                                                                dataPacket.value().data);
-                if (message.has_value())
+                if (!handleRrcSearch(clientFileDescriptor, receivedProtocol,
+                                *serializer, dataPacket.value().data))
                 {
-                    const SearchRequest& searchRequest = std::get<SearchRequest>(message.value());
-                    std::optional<BaseStationId> bestBaseStationId = mme->findBestBaseStation(searchRequest.position);
-                    if (bestBaseStationId.has_value())
-                    {
-                        if (!sendRrcResponse(clientFileDescriptor, receivedProtocol, bestBaseStationId.value()))
-                        {
-                            closeClientConnection(clientFileDescriptor);
-                        }
-                    }
-                    else
-                    {
-                        if (!sendRrcReject(clientFileDescriptor, receivedProtocol, "No coverage"))
-                        {
-                            closeClientConnection(clientFileDescriptor);
-                        }
-                    }
+                    return;
                 }
-                else
-                {
-                    Logger::error("Failed to deserialize RRC_SEARCH packet");
-                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
-                    {
-                        closeClientConnection(clientFileDescriptor);
-                    }
-                }
+                // std::optional<NetworkMessage> message = serializer->deserialize(PacketType::RRC_SEARCH,
+                //                                                                 dataPacket.value().data);
+                // if (message.has_value())
+                // {
+                //     const SearchRequest& searchRequest = std::get<SearchRequest>(message.value());
+                //     std::optional<BaseStationId> bestBaseStationId = mme->findBestBaseStation(searchRequest.position);
+                //     if (bestBaseStationId.has_value())
+                //     {
+                //         if (!sendRrcResponse(clientFileDescriptor, receivedProtocol, bestBaseStationId.value()))
+                //         {
+                //             closeClientConnection(clientFileDescriptor);
+                //         }
+                //     }
+                //     else
+                //     {
+                //         if (!sendRrcReject(clientFileDescriptor, receivedProtocol, "No coverage"))
+                //         {
+                //             closeClientConnection(clientFileDescriptor);
+                //         }
+                //     }
+                // }
+                // else
+                // {
+                //     Logger::error("Failed to deserialize RRC_SEARCH packet");
+                //     if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
+                //     {
+                //         closeClientConnection(clientFileDescriptor);
+                //     }
+                // }
                 break;
             }
             case PacketType::ATTACH_REQUEST :
             {
-                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::ATTACH_REQUEST,
-                                                                                dataPacket.value().data);
-                if (message.has_value())
+                if (!handleAttachRequest(clientFileDescriptor, receivedProtocol,
+                                    *serializer, dataPacket.value().data, currentTmsi))
                 {
-                    const AttachRequest& attachRequest = std::get<AttachRequest>(message.value());
-                    std::optional<M_TMSI> m_tmsi = mme->attachClient(attachRequest.imei,
-                                                                     attachRequest.imsi,
-                                                                     attachRequest.baseStationId,
-                                                                     clientFileDescriptor,
-                                                                     *serializer);
-                    if (m_tmsi.has_value())
-                    {
-                        currentTmsi = m_tmsi.value();
-                        if (!sendAttachAccept(clientFileDescriptor, receivedProtocol, m_tmsi.value()))
-                        {
-                            closeClientConnection(clientFileDescriptor);
-                        }
-                    }
-                    else
-                    {
-                        if (!sendAttachReject(clientFileDescriptor, receivedProtocol, "Registration failed"))
-                        {
-                            closeClientConnection(clientFileDescriptor);
-                        }
-                    }
+                    return;
                 }
-                else
-                {
-                    Logger::error("Failed to deserialize ATTACH_REQUEST packet");
-                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
-                    {
-                        closeClientConnection(clientFileDescriptor);
-                    }
-                }
+                // std::optional<NetworkMessage> message = serializer->deserialize(PacketType::ATTACH_REQUEST,
+                //                                                                 dataPacket.value().data);
+                // if (message.has_value())
+                // {
+                //     const AttachRequest& attachRequest = std::get<AttachRequest>(message.value());
+                //     std::optional<M_TMSI> m_tmsi = mme->attachClient(attachRequest.imei,
+                //                                                      attachRequest.imsi,
+                //                                                      attachRequest.baseStationId,
+                //                                                      clientFileDescriptor,
+                //                                                      *serializer);
+                //     if (m_tmsi.has_value())
+                //     {
+                //         currentTmsi = m_tmsi.value();
+                //         if (!sendAttachAccept(clientFileDescriptor, receivedProtocol, m_tmsi.value()))
+                //         {
+                //             closeClientConnection(clientFileDescriptor);
+                //         }
+                //     }
+                //     else
+                //     {
+                //         if (!sendAttachReject(clientFileDescriptor, receivedProtocol, "Registration failed"))
+                //         {
+                //             closeClientConnection(clientFileDescriptor);
+                //         }
+                //     }
+                // }
+                // else
+                // {
+                //     Logger::error("Failed to deserialize ATTACH_REQUEST packet");
+                //     if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
+                //     {
+                //         closeClientConnection(clientFileDescriptor);
+                //     }
+                // }
                 break;
             }
             case PacketType::LOCATION :
             {
-                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::LOCATION,
-                                                                                dataPacket.value().data);
-                if (message.has_value())
+                if (!handleLocationRequest(clientFileDescriptor, receivedProtocol,
+                                     *serializer, dataPacket.value().data, currentTmsi))
                 {
-                    LocationPoint3D& targetLocation = std::get<LocationPoint3D>(message.value());
-                    Logger::info("Get a target point: " + convertLocationToString(targetLocation));
-
-                    auto bestBaseStationId = mme->findBestBaseStation(targetLocation);
-                    if (currentTmsi.has_value())
-                    {
-                        if (bestBaseStationId.has_value())
-                        {
-                            mme->startHandover(currentTmsi.value(), bestBaseStationId.value());
-                        }
-                        else
-                        {
-                            Logger::info(std::format("Client with M_TMSI {} out of coverage. Forcing detach",
-                                                        currentTmsi.value()));
-                            sendErrorResponse(clientFileDescriptor, receivedProtocol,
-                                              "Network connection lost: out of coverage area");
-
-                            bool isDetached = mme->detachClient(currentTmsi.value());
-                            if (isDetached)
-                            {
-                                Logger::info("Client with M_TMSI = " + std::to_string(currentTmsi.value())
-                                            + " detached successfully");
-                            }
-                            else
-                            {
-                                Logger::info("Detach failed for M_TMSI = "
-                                            + std::to_string(currentTmsi.value()));
-                            }
-                            currentTmsi = std::nullopt;
-                            closeClientConnection(clientFileDescriptor);
-                            return;
-                        }
-                    }
-
-                    CoordinatesType distance = location.distanceTo(targetLocation);
-                    Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
-                                + " is " + std::to_string(distance));
-
-                    if (!sendDistanceResponse(clientFileDescriptor, receivedProtocol, distance))
-                    {
-                        closeClientConnection(clientFileDescriptor);
-                    }
+                    return;
                 }
-                else
-                {
-                    Logger::error("Failed to deserialize LOCATION packet");
-                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Invalid location data"))
-                    {
-                        closeClientConnection(clientFileDescriptor);
-                    }
-                }
+                // std::optional<NetworkMessage> message = serializer->deserialize(PacketType::LOCATION,
+                //                                                                 dataPacket.value().data);
+                // if (message.has_value())
+                // {
+                //     LocationPoint3D& targetLocation = std::get<LocationPoint3D>(message.value());
+                //     Logger::info("Get a target point: " + convertLocationToString(targetLocation));
+
+                //     auto bestBaseStationId = mme->findBestBaseStation(targetLocation);
+                //     if (currentTmsi.has_value())
+                //     {
+                //         if (bestBaseStationId.has_value())
+                //         {
+                //             mme->startHandover(currentTmsi.value(), bestBaseStationId.value());
+                //         }
+                //         else
+                //         {
+                //             Logger::info(std::format("Client with M_TMSI {} out of coverage. Forcing detach",
+                //                                         currentTmsi.value()));
+                //             sendErrorResponse(clientFileDescriptor, receivedProtocol,
+                //                               "Network connection lost: out of coverage area");
+
+                //             bool isDetached = mme->detachClient(currentTmsi.value());
+                //             if (isDetached)
+                //             {
+                //                 Logger::info("Client with M_TMSI = " + std::to_string(currentTmsi.value())
+                //                             + " detached successfully");
+                //             }
+                //             else
+                //             {
+                //                 Logger::info("Detach failed for M_TMSI = "
+                //                             + std::to_string(currentTmsi.value()));
+                //             }
+                //             currentTmsi = std::nullopt;
+                //             closeClientConnection(clientFileDescriptor);
+                //             return;
+                //         }
+                //     }
+
+                //     CoordinatesType distance = location.distanceTo(targetLocation);
+                //     Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
+                //                 + " is " + std::to_string(distance));
+
+                //     if (!sendDistanceResponse(clientFileDescriptor, receivedProtocol, distance))
+                //     {
+                //         closeClientConnection(clientFileDescriptor);
+                //     }
+                // }
+                // else
+                // {
+                //     Logger::error("Failed to deserialize LOCATION packet");
+                //     if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Invalid location data"))
+                //     {
+                //         closeClientConnection(clientFileDescriptor);
+                //     }
+                // }
                 break;
             }
             case PacketType::DETACH_REQUEST :
             {
-                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::DETACH_REQUEST,
-                                                                                dataPacket.value().data);
-                if (message.has_value())
+                if (!handleDetachRequest(clientFileDescriptor, receivedProtocol,
+                                     *serializer, dataPacket.value().data, currentTmsi))
                 {
-                    const DetachRequest& detachRequest = std::get<DetachRequest>(message.value());
-                    bool isDetached = mme->detachClient(detachRequest.m_tmsi);
-                    if (isDetached)
-                    {
-                        Logger::info("Client with M_TMSI = " + std::to_string(detachRequest.m_tmsi)
-                                    + " detached successfully");
-                    }
-                    else
-                    {
-                        Logger::info("Detach failed for M_TMSI = "
-                                    + std::to_string(detachRequest.m_tmsi));
-                    }
-                    currentTmsi = std::nullopt;
-                    closeClientConnection(clientFileDescriptor);
-                    return; 
+                    return;
                 }
-                else
-                {
-                    Logger::error("Failed to deserialize DETACH_REQUEST packet");
-                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
-                    {
-                        closeClientConnection(clientFileDescriptor);
-                    }
-                }
+                // std::optional<NetworkMessage> message = serializer->deserialize(PacketType::DETACH_REQUEST,
+                //                                                                 dataPacket.value().data);
+                // if (message.has_value())
+                // {
+                //     const DetachRequest& detachRequest = std::get<DetachRequest>(message.value());
+                //     bool isDetached = mme->detachClient(detachRequest.m_tmsi);
+                //     if (isDetached)
+                //     {
+                //         Logger::info("Client with M_TMSI = " + std::to_string(detachRequest.m_tmsi)
+                //                     + " detached successfully");
+                //     }
+                //     else
+                //     {
+                //         Logger::info("Detach failed for M_TMSI = "
+                //                     + std::to_string(detachRequest.m_tmsi));
+                //     }
+                //     currentTmsi = std::nullopt;
+                //     closeClientConnection(clientFileDescriptor);
+                //     return; 
+                // }
+                // else
+                // {
+                //     Logger::error("Failed to deserialize DETACH_REQUEST packet");
+                //     if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
+                //     {
+                //         closeClientConnection(clientFileDescriptor);
+                //     }
+                // }
                 break;
             }
             case PacketType::SMS_SEND :
             {
-                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::SMS_SEND,
-                                                                                dataPacket.value().data);
-                if (message.has_value())
+                if (!handleSmsSendRequest(clientFileDescriptor, receivedProtocol,
+                                     *serializer, dataPacket.value().data))
                 {
-                    const SmsSendRequest& smsSendRequest = std::get<SmsSendRequest>(message.value());
+                    return;
+                }
+                // std::optional<NetworkMessage> message = serializer->deserialize(PacketType::SMS_SEND,
+                //                                                                 dataPacket.value().data);
+                // if (message.has_value())
+                // {
+                //     const SmsSendRequest& smsSendRequest = std::get<SmsSendRequest>(message.value());
 
-                    auto globalSmsIds = mme->handleSmsRequest(smsSendRequest, *serializer);
-                    if (globalSmsIds.has_value())
-                    {
-                        for (const auto& globalSmsId : globalSmsIds.value())
-                        {
-                            if (!sendSmsSubmitAccept(clientFileDescriptor, receivedProtocol,
-                                                    smsSendRequest.smsId, globalSmsId))
-                            {
-                                closeClientConnection(clientFileDescriptor);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "The SMS was not delivered"))
-                        {
-                            closeClientConnection(clientFileDescriptor);
-                        }
-                    }
-                }
-                else
-                {
-                    Logger::error("Failed to deserialize SMS_SEND packet");
-                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed SMS packet"))
-                    {
-                        closeClientConnection(clientFileDescriptor);
-                    }
-                }
+                //     auto globalSmsIds = mme->handleSmsRequest(smsSendRequest, *serializer);
+                //     if (globalSmsIds.has_value())
+                //     {
+                //         for (const auto& globalSmsId : globalSmsIds.value())
+                //         {
+                //             if (!sendSmsSubmitAccept(clientFileDescriptor, receivedProtocol,
+                //                                     smsSendRequest.smsId, globalSmsId))
+                //             {
+                //                 closeClientConnection(clientFileDescriptor);
+                //             }
+                //         }
+                //     }
+                //     else
+                //     {
+                //         if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "The SMS was not delivered"))
+                //         {
+                //             closeClientConnection(clientFileDescriptor);
+                //         }
+                //     }
+                // }
+                // else
+                // {
+                //     Logger::error("Failed to deserialize SMS_SEND packet");
+                //     if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed SMS packet"))
+                //     {
+                //         closeClientConnection(clientFileDescriptor);
+                //     }
+                // }
                 break;
             }
             case PacketType::SMS_DELIVERY_ACKNOWLEDGE :
             {
-                std::optional<NetworkMessage> message = serializer->deserialize(PacketType::SMS_DELIVERY_ACKNOWLEDGE,
-                                                                                dataPacket.value().data);
-                if (message.has_value())
+                if (!handleSmsDeliveryAknowledge(clientFileDescriptor, receivedProtocol,
+                                            *serializer, dataPacket.value().data))
                 {
-                    const SmsDeliveryAcknowledge& smsDeliveryAcknowledge =
-                                                            std::get<SmsDeliveryAcknowledge>(message.value());
-                    mme->handleSmsDeliveryAcknowledge(smsDeliveryAcknowledge, *serializer);
+                    return;
                 }
-                else
-                {
-                    Logger::error("Failed to deserialize SMS_DELIVERY_ACKNOWLEDGE packet");
-                    if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
-                    {
-                        closeClientConnection(clientFileDescriptor);
-                    }
-                }
+                // std::optional<NetworkMessage> message = serializer->deserialize(PacketType::SMS_DELIVERY_ACKNOWLEDGE,
+                //                                                                 dataPacket.value().data);
+                // if (message.has_value())
+                // {
+                //     const SmsDeliveryAcknowledge& smsDeliveryAcknowledge =
+                //                                             std::get<SmsDeliveryAcknowledge>(message.value());
+                //     mme->handleSmsDeliveryAcknowledge(smsDeliveryAcknowledge, *serializer);
+                // }
+                // else
+                // {
+                //     Logger::error("Failed to deserialize SMS_DELIVERY_ACKNOWLEDGE packet");
+                //     if (!sendErrorResponse(clientFileDescriptor, receivedProtocol, "Deformed network data packet"))
+                //     {
+                //         closeClientConnection(clientFileDescriptor);
+                //     }
+                // }
                 break;
             }
         }
@@ -434,6 +465,256 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
         currentTmsi = std::nullopt;
     }
     closeClientConnection(clientFileDescriptor);
+}
+
+bool ServerApp::handleRrcSearch(int clientFileDescriptor, Protocol protocol,
+                        const SerializerInterface& serializer, const BytesBuffer& data)
+{
+    std::optional<NetworkMessage> message = serializer.deserialize(PacketType::RRC_SEARCH,
+                                                                   data);
+    if (message.has_value())
+    {
+        const SearchRequest& searchRequest = std::get<SearchRequest>(message.value());
+        std::optional<BaseStationId> bestBaseStationId = mme->findBestBaseStation(searchRequest.position);
+        if (bestBaseStationId.has_value())
+        {
+            if (!sendRrcResponse(clientFileDescriptor, protocol, bestBaseStationId.value()))
+            {
+                closeClientConnection(clientFileDescriptor);
+                return false;
+            }
+        }
+        else
+        {
+            if (!sendRrcReject(clientFileDescriptor, protocol, "No coverage"))
+            {
+                closeClientConnection(clientFileDescriptor);
+                return false;
+            }
+        }
+    }
+    else
+    {
+        Logger::error("Failed to deserialize RRC_SEARCH packet");
+        if (!sendErrorResponse(clientFileDescriptor, protocol, "Deformed network data packet"))
+        {
+            closeClientConnection(clientFileDescriptor);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ServerApp::handleAttachRequest(int clientFileDescriptor, Protocol protocol,
+                                    const SerializerInterface& serializer,
+                                    const BytesBuffer& data, std::optional<M_TMSI>& currentTmsi)
+{
+    std::optional<NetworkMessage> message = serializer.deserialize(PacketType::ATTACH_REQUEST,
+                                                                   data);
+    if (message.has_value())
+    {
+        const AttachRequest& attachRequest = std::get<AttachRequest>(message.value());
+        std::optional<M_TMSI> m_tmsi = mme->attachClient(attachRequest.imei,
+                                                        attachRequest.imsi,
+                                                        attachRequest.baseStationId,
+                                                        clientFileDescriptor,
+                                                        serializer);
+        if (m_tmsi.has_value())
+        {
+            currentTmsi = m_tmsi.value();
+            if (!sendAttachAccept(clientFileDescriptor, protocol, m_tmsi.value()))
+            {
+                closeClientConnection(clientFileDescriptor);
+                return false;
+            }
+        }
+        else
+        {
+            if (!sendAttachReject(clientFileDescriptor, protocol, "Registration failed"))
+            {
+                closeClientConnection(clientFileDescriptor);
+                return false;
+            }
+        }
+    }
+    else
+    {
+        Logger::error("Failed to deserialize ATTACH_REQUEST packet");
+        if (!sendErrorResponse(clientFileDescriptor, protocol, "Deformed network data packet"))
+        {
+            closeClientConnection(clientFileDescriptor);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ServerApp::handleLocationRequest(int clientFileDescriptor, Protocol protocol,
+                                    const SerializerInterface& serializer, const BytesBuffer& data,
+                                    std::optional<M_TMSI>& currentTmsi)
+{
+    std::optional<NetworkMessage> message = serializer.deserialize(PacketType::LOCATION,
+                                                                   data);
+    if (message.has_value())
+    {
+        LocationPoint3D& targetLocation = std::get<LocationPoint3D>(message.value());
+        Logger::info("Get a target point: " + convertLocationToString(targetLocation));
+
+        auto bestBaseStationId = mme->findBestBaseStation(targetLocation);
+        if (currentTmsi.has_value())
+        {
+            if (bestBaseStationId.has_value())
+            {
+                mme->startHandover(currentTmsi.value(), bestBaseStationId.value());
+            }
+            else
+            {
+                Logger::info(std::format("Client with M_TMSI {} out of coverage. Forcing detach",
+                                            currentTmsi.value()));
+                sendErrorResponse(clientFileDescriptor, protocol,
+                                    "Network connection lost: out of coverage area");
+
+                bool isDetached = mme->detachClient(currentTmsi.value());
+                if (isDetached)
+                {
+                    Logger::info("Client with M_TMSI = " + std::to_string(currentTmsi.value())
+                                + " detached successfully");
+                }
+                else
+                {
+                    Logger::info("Detach failed for M_TMSI = "
+                                + std::to_string(currentTmsi.value()));
+                }
+                currentTmsi = std::nullopt;
+                closeClientConnection(clientFileDescriptor);
+                return false;
+            }
+        }
+
+        CoordinatesType distance = location.distanceTo(targetLocation);
+        Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
+                    + " is " + std::to_string(distance));
+
+        if (!sendDistanceResponse(clientFileDescriptor, protocol, distance))
+        {
+            closeClientConnection(clientFileDescriptor);
+            return false;
+        }
+    }
+    else
+    {
+        Logger::error("Failed to deserialize LOCATION packet");
+        if (!sendErrorResponse(clientFileDescriptor, protocol, "Invalid location data"))
+        {
+            closeClientConnection(clientFileDescriptor);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ServerApp::handleDetachRequest(int clientFileDescriptor, Protocol protocol,
+                                   const SerializerInterface& serializer,
+                                   const BytesBuffer& data, std::optional<M_TMSI>& currentTmsi)
+{
+    std::optional<NetworkMessage> message = serializer.deserialize(PacketType::DETACH_REQUEST,
+                                                                                data);
+    if (message.has_value())
+    {
+        const DetachRequest& detachRequest = std::get<DetachRequest>(message.value());
+        bool isDetached = mme->detachClient(detachRequest.m_tmsi);
+        if (isDetached)
+        {
+            Logger::info("Client with M_TMSI = " + std::to_string(detachRequest.m_tmsi)
+                        + " detached successfully");
+        }
+        else
+        {
+            Logger::info("Detach failed for M_TMSI = "
+                        + std::to_string(detachRequest.m_tmsi));
+        }
+        currentTmsi = std::nullopt;
+        closeClientConnection(clientFileDescriptor);
+        return false; 
+    }
+    else
+    {
+        Logger::error("Failed to deserialize DETACH_REQUEST packet");
+        if (!sendErrorResponse(clientFileDescriptor, protocol, "Deformed network data packet"))
+        {
+            closeClientConnection(clientFileDescriptor);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol,
+                                    const SerializerInterface& serializer,
+                                    const BytesBuffer& data)
+{
+    std::optional<NetworkMessage> message = serializer.deserialize(PacketType::SMS_SEND,
+                                                                    data);
+    if (message.has_value())
+    {
+        const SmsSendRequest& smsSendRequest = std::get<SmsSendRequest>(message.value());
+
+        auto globalSmsIds = mme->handleSmsRequest(smsSendRequest, serializer);
+        if (globalSmsIds.has_value())
+        {
+            for (const auto& globalSmsId : globalSmsIds.value())
+            {
+                if (!sendSmsSubmitAccept(clientFileDescriptor, protocol,
+                                        smsSendRequest.smsId, globalSmsId))
+                {
+                    closeClientConnection(clientFileDescriptor);
+                    return false;
+                }
+            }
+        }
+        else
+        {
+            if (!sendErrorResponse(clientFileDescriptor, protocol, "The SMS was not delivered"))
+            {
+                closeClientConnection(clientFileDescriptor);
+                return false;
+            }
+        }
+    }
+    else
+    {
+        Logger::error("Failed to deserialize SMS_SEND packet");
+        if (!sendErrorResponse(clientFileDescriptor, protocol, "Deformed SMS packet"))
+        {
+            closeClientConnection(clientFileDescriptor);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ServerApp::handleSmsDeliveryAknowledge(int clientFileDescriptor, Protocol protocol,
+                                            const SerializerInterface& serializer,
+                                            const BytesBuffer& data)
+{
+    std::optional<NetworkMessage> message = serializer.deserialize(PacketType::SMS_DELIVERY_ACKNOWLEDGE,
+                                                                    data);
+    if (message.has_value())
+    {
+        const SmsDeliveryAcknowledge& smsDeliveryAcknowledge =
+                                                std::get<SmsDeliveryAcknowledge>(message.value());
+        mme->handleSmsDeliveryAcknowledge(smsDeliveryAcknowledge, serializer);
+    }
+    else
+    {
+        Logger::error("Failed to deserialize SMS_DELIVERY_ACKNOWLEDGE packet");
+        if (!sendErrorResponse(clientFileDescriptor, protocol, "Deformed network data packet"))
+        {
+            closeClientConnection(clientFileDescriptor);
+            return false;
+        }
+    }
+    return true;
 }
 
 void ServerApp::sendBufferedMessages(int clientFileDescriptor, Protocol protocol,

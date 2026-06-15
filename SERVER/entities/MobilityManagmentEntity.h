@@ -55,12 +55,10 @@ public:
                                        const SerializerInterface& serializer);
     bool detachClient(M_TMSI m_tmsi);
     void startHandover(M_TMSI m_tmsi, BaseStationId newBaseStationId);
-    void sendSmsToSmsc();
     std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request,
                                                        const SerializerInterface& serializer);
     void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages,
                                       const SerializerInterface& serializer);
-    void sendSmsSubmitAccept();
 };
 
 #endif
