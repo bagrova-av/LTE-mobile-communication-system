@@ -119,6 +119,7 @@ std::optional<BytesBuffer> ClientSocket::receiveAllData(size_t bytesCount) const
         if (received == 0)
         {
             errno = 0;
+            Logger::warning("ClientSocket: the server terminated the connection early");
             return std::nullopt;
         }
         if (received == -1)

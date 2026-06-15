@@ -448,7 +448,6 @@ void App::networkThreadWorker()
                 //if (errno != EAGAIN && errno != EWOULDBLOCK)
                 if (errno == 0)
                 {
-                    Logger::warning("\n\nServer connection lost unexpectedly. Shutting down network activities");
                     clientSocket.disconnect();
 
                     std::lock_guard<std::mutex> lock(stateMutex);
