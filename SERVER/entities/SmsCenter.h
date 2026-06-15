@@ -6,6 +6,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <atomic>
+#include <functional>
 
 #include "../../CORE/types.h"
 #include "../../CORE/entitiesConfigs/SmsCenterConfig.h"
@@ -14,6 +15,8 @@ enum class SmsStatus
 {
     PENDING,
     DELIVERED,
+    WAITING_DELIVERY_REPORT,
+    WAITING_FAILURE_REPORT,
     FAILED
 };
 
@@ -26,6 +29,19 @@ struct SmsRecord
     std::string text;
     std::chrono::system_clock::time_point createdTime;
     SmsStatus status;
+};
+
+struct PendingEvents
+{
+    std::vector<SmsRecord> incomingMessages;
+    std::vector<SmsRecord> statusReports;
+};
+
+struct AcknowledgeResult
+{
+    bool found;
+    std::optional<M_TMSI> senderTmsi;
+    bool senderOnline;
 };
 
 class SmsCenter
@@ -46,11 +62,15 @@ public:
     size_t getMaxBufferCount() const;
     //Milliseconds getSmsTtlMs() const;
     std::chrono::milliseconds getSmsTtlMs() const;
+    std::optional<SmsRecord> getSmsRecordById(SmsId smsId);
 
     std::optional<std::vector<SmsId>> storeMessage(M_TMSI senderTmsi, const MSISDN& senderMsisdn,
                                                 const MSISDN& receiverMsisdn, const std::string& fullText);            
     std::vector<SmsRecord> getMessagesForReceiver(const MSISDN& receiverMmsisdn);
-    std::vector<SmsRecord> popExpiredMessages();
+    PendingEvents popEventsForSubscriber(const MSISDN& msisdn);
+    AcknowledgeResult processDeliveryAcknowledge(SmsId smsId, bool isSenderOnline);
+    void processExpiredMessages(const std::function<bool(M_TMSI)>& isSenderOnline);
+    void processExpiredMessages();
     std::optional<SmsRecord> markSmsAsDelivered(SmsId smsId);
 };
 
