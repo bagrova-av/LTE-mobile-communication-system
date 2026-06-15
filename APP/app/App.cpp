@@ -315,13 +315,12 @@ void App::handleSendSmsTask(uint8_t protocolHeader,
 
 void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
 {
-    Protocol protocol;
     std::optional<M_TMSI> m_tmsi;
     {
         std::lock_guard<std::mutex> lock(stateMutex);
-        protocol = state.protocol;
         m_tmsi = state.m_tmsi;
     }
+    Protocol protocol = static_cast<Protocol>(dataPacket.protocolHeader);
     auto serializer = SerializerFactory::createSerializer(protocol);
 
     switch (dataPacket.packetType)
@@ -359,14 +358,11 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
                 const auto& sms = std::get<SmsIncomingMessage>(message.value());
                 
                 addReceivedSmsRecord(ReceivedSmsRecord{sms.senderMsisdn, sms.text});
-                // std::cout << "\r" << std::string(50, ' ') << "\r";
-                // std::cout << "[NEW SMS from " << sms.senderMsisdn << "]: " << sms.text << std::endl;
-                // std::cout << "Please, enter the command: " << std::flush;
                 responsesQueue.push("New SMS from " + sms.senderMsisdn + ":\n" + sms.text);
 
                 SmsDeliveryAcknowledge smsDeliveryAcknowledge{m_tmsi.value(),
                                                               sms.smsId,
-                                                              SmsDeliveryStatus::DELIVERED}; //TODO
+                                                              SmsDeliveryStatus::DELIVERED};
                 if (!PacketTransporter::sendDataPacketRequest(clientSocket,
                                                         static_cast<uint8_t>(protocol),
                                                         PacketType::SMS_DELIVERY_ACKNOWLEDGE,

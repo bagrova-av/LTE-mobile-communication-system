@@ -106,10 +106,9 @@ std::optional<NetworkMessage> JsonSerializer::deserialize(PacketType packetType,
         return std::nullopt;
     }
 
-    json dataJSON = json::parse(std::string(dataNetworkFormat.begin(), dataNetworkFormat.end()));
-
     try
     {
+        json dataJSON = json::parse(std::string(dataNetworkFormat.begin(), dataNetworkFormat.end()));
         switch (packetType)
         {
             case PacketType::RRC_SEARCH :

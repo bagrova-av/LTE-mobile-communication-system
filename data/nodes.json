@@ -10,7 +10,7 @@
     },
     {
       "id": 2,
-      "mme_id": 2,
+      "mme_id": 1,
       "position": [100, 0, 0],
       "coverage_radius": 120.0,
       "max_supported_connections": 10,
