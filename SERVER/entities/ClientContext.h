@@ -16,6 +16,7 @@ enum class UEState
 
 struct BufferedPacket
 {
+    uint8_t protocolHeader;
     PacketType packetType;
     BytesBuffer data;
 };

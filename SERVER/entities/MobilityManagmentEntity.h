@@ -15,6 +15,7 @@ struct clientsData
     IMEI imei;
     MSISDN msisdn;
     BaseStationId currentBaseSationId;
+    Protocol protocol;
 };
 
 class MobilityManagmentEntity
@@ -48,16 +49,16 @@ public:
     BaseStation* getBaseStationByTmsi(M_TMSI m_tmsi);
     std::optional<BaseStationId> findBestBaseStation(const LocationPoint3D& clientLocation);
 
-    void cleanupExpiredMessages(const SerializerInterface& serializer);
+    void cleanupExpiredMessages();
 
     std::optional<M_TMSI> attachClient(const IMEI& imei, const IMSI& imsi,
                                        BaseStationId baseStationId, int clientFileDescriptor,
-                                       const SerializerInterface& serializer);
+                                       Protocol protocol);
     bool detachClient(M_TMSI m_tmsi);
     void startHandover(M_TMSI m_tmsi, BaseStationId newBaseStationId);
-    std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request,
+    std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request, Protocol protocol,
                                                        const SerializerInterface& serializer);
-    void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages,
+    void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages, Protocol protocol,
                                       const SerializerInterface& serializer);
 };
 

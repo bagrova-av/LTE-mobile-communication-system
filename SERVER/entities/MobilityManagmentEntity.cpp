@@ -1,6 +1,7 @@
 #include "MobilityManagmentEntity.h"
 #include "../../COMMON/constants.h"
 #include "../../COMMON/logging/Logger.h"
+#include "../../CORE/network/SerializerFactory.h"
 
 MobilityManagmentEntity::MobilityManagmentEntity(const MmeConfig& config,
                                                 std::vector<std::unique_ptr<BaseStation>> baseStations,
@@ -78,7 +79,7 @@ std::optional<BaseStationId> MobilityManagmentEntity::findBestBaseStation(const 
     return bestBaseStationId;
 }
 
-void MobilityManagmentEntity::cleanupExpiredMessages(const SerializerInterface& serializer)
+void MobilityManagmentEntity::cleanupExpiredMessages()
 {
     smsCenter->processExpiredMessages();
 
@@ -99,12 +100,14 @@ void MobilityManagmentEntity::cleanupExpiredMessages(const SerializerInterface& 
                 status = SmsDeliveryStatus::FAILED;
             }
             
+            auto currentSerializer = SerializerFactory::createSerializer(data.protocol);
             BaseStation* baseStation = getBaseStationByIdWithoutMutex(data.currentBaseSationId);
             if (baseStation)
             {
                 SmsStatusReport smsStatusReport{sms.senderTmsi, sms.smsId, status};
-                BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
-                                              serializer.serialize(smsStatusReport)};
+                BufferedPacket packetForBuffer{static_cast<uint8_t>(data.protocol),
+                                               PacketType::SMS_STATUS,
+                                              currentSerializer->serialize(smsStatusReport)};
                 baseStation->pushMessageToBuffer(sms.senderTmsi, packetForBuffer);
                 Logger::info(std::format("MME: Expired SMS {} report sent to sender {}", sms.smsId, sms.senderTmsi));
             }
@@ -115,7 +118,7 @@ void MobilityManagmentEntity::cleanupExpiredMessages(const SerializerInterface& 
 std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, const IMSI& imsi,
                                                             BaseStationId baseStationId, 
                                                             int clientFileDescriptor,
-                                                            const SerializerInterface& serializer)
+                                                            Protocol protocol)
 {
     std::lock_guard<std::mutex> lock(mmeMutex);
 
@@ -170,7 +173,8 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
     
     visitorLocationRegister.emplace(m_tmsi, clientsData{imei, 
                                                         subscriberRecord.value().identityData.msisdn,
-                                                        baseStationId}
+                                                        baseStationId,
+                                                        protocol}
     );
     msisdnLookupTmsi.emplace(subscriberRecord.value().identityData.msisdn, m_tmsi);
     imsiLookupTmsi.emplace(imsi, m_tmsi);
@@ -178,11 +182,13 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
 
     // Checking messages for this client in SMSC
     auto events = smsCenter->popEventsForSubscriber(subscriberRecord->identityData.msisdn);
+    auto currentSerializer = SerializerFactory::createSerializer(protocol);
     for (const auto& sms : events.incomingMessages)
     {
         SmsIncomingMessage smsIncomingMessage{m_tmsi, sms.senderMsisdn, sms.smsId, sms.text};
-        BufferedPacket packetForBuffer{PacketType::SMS_RECEIVE,
-                                       serializer.serialize(smsIncomingMessage)};
+        BufferedPacket packetForBuffer{static_cast<uint8_t>(protocol),
+                                       PacketType::SMS_RECEIVE,
+                                       currentSerializer->serialize(smsIncomingMessage)};
         targetBaseStation->pushMessageToBuffer(m_tmsi, packetForBuffer);
     }
 
@@ -198,8 +204,9 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
             status = SmsDeliveryStatus::FAILED;
         }
         SmsStatusReport report{m_tmsi, sms.smsId, status};
-        BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
-                                       serializer.serialize(report)};
+        BufferedPacket packetForBuffer{static_cast<uint8_t>(protocol),
+                                      PacketType::SMS_STATUS,
+                                       currentSerializer->serialize(report)};
         targetBaseStation->pushMessageToBuffer(m_tmsi, packetForBuffer);
     }
 
@@ -279,6 +286,7 @@ void MobilityManagmentEntity::startHandover(M_TMSI m_tmsi, BaseStationId newBase
 }
 
 std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(const SmsSendRequest& request,
+                                                                            Protocol protocol,
                                                                             const SerializerInterface& serializer)
 {
     std::lock_guard<std::mutex> lock(mmeMutex);
@@ -317,31 +325,69 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
     size_t offset = 0;
     size_t maxTextLength = smsCenter->getMaxTextLength();
     std::string partText;
-    for (const auto& smsId : smsIds.value())
+
+    auto itRecipientTmsi = msisdnLookupTmsi.find(request.receiverMsisdn);
+    if (itRecipientTmsi != msisdnLookupTmsi.end())
     {
-        partText = request.text.substr(offset, maxTextLength);
-        offset += maxTextLength;
-
-        SmsIncomingMessage message{routingInfo.value().first,
-                                   itSender->second.msisdn,
-                                   smsId,
-                                   partText};
-        BaseStation* baseStation = getBaseStationByIdWithoutMutex(routingInfo.value().second);
-        if (!baseStation)
+        auto itRecipientVlr = visitorLocationRegister.find(itRecipientTmsi->second);
+        if (itRecipientVlr != visitorLocationRegister.end())
         {
-            Logger::info("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
-        }
+            M_TMSI targetTmsi = itRecipientVlr->first;
+            Protocol recipientProtocol = itRecipientVlr->second.protocol; 
+            auto recipientSerializer = SerializerFactory::createSerializer(recipientProtocol);
 
-        BufferedPacket packetForBuffer{PacketType::SMS_RECEIVE,
-                                       serializer.serialize(message)};
-        baseStation->pushMessageToBuffer(routingInfo.value().first, packetForBuffer);
-        Logger::info("MME: SMS with ID " + std::to_string(smsId)
-                    + " routed immediately to the base station " + std::to_string(routingInfo.value().second));
+            size_t offset = 0;
+            size_t maxLen = smsCenter->getMaxTextLength();
+
+            for (const auto& smsId : smsIds.value())
+            {
+                std::string partText = request.text.substr(offset, maxLen);
+                offset += maxLen;
+
+                SmsIncomingMessage incomingMsg{targetTmsi, itSender->second.msisdn, smsId, partText};
+                
+                BufferedPacket packetForBuffer{static_cast<uint8_t>(recipientProtocol),
+                                                PacketType::SMS_RECEIVE,
+                                                recipientSerializer->serialize(incomingMsg)};
+
+                BaseStation* baseStation = getBaseStationByIdWithoutMutex(routingInfo.value().second);
+                if (!baseStation)
+                {
+                    Logger::info("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
+                }
+                baseStation->pushMessageToBuffer(routingInfo.value().first, packetForBuffer);
+                Logger::info("MME: SMS with ID " + std::to_string(smsId)
+                            + " routed immediately to the base station " + std::to_string(routingInfo.value().second));
+            }
+        }
     }
+    // for (const auto& smsId : smsIds.value())
+    // {
+    //     partText = request.text.substr(offset, maxTextLength);
+    //     offset += maxTextLength;
+
+    //     SmsIncomingMessage message{routingInfo.value().first,
+    //                                itSender->second.msisdn,
+    //                                smsId,
+    //                                partText};
+    //     BaseStation* baseStation = getBaseStationByIdWithoutMutex(routingInfo.value().second);
+    //     if (!baseStation)
+    //     {
+    //         Logger::info("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
+    //     }
+
+    //     BufferedPacket packetForBuffer{static_cast<uint8_t>(protocol),
+    //                                    PacketType::SMS_RECEIVE,
+    //                                    serializer.serialize(message)};
+    //     baseStation->pushMessageToBuffer(routingInfo.value().first, packetForBuffer);
+    //     Logger::info("MME: SMS with ID " + std::to_string(smsId)
+    //                 + " routed immediately to the base station " + std::to_string(routingInfo.value().second));
+    // }
     return smsIds;
 }
 
 void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& message,
+                                                          Protocol protocol,
                                                           const SerializerInterface& serializer)
 {
     std::lock_guard<std::mutex> lock(mmeMutex);
@@ -371,7 +417,8 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
     if (baseStation)
     {
         SmsStatusReport smsStatusReport{smsRecord.value().senderTmsi, message.smsId, message.status};
-        BufferedPacket packetForBuffer{PacketType::SMS_STATUS,
+        BufferedPacket packetForBuffer{static_cast<uint8_t>(protocol),
+                                        PacketType::SMS_STATUS,
                                         serializer.serialize(smsStatusReport)};
         if (baseStation->pushMessageToBuffer(smsRecord.value().senderTmsi, packetForBuffer))
         {

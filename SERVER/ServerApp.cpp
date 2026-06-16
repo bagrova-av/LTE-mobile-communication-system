@@ -181,7 +181,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             if (errno == EAGAIN || errno == EWOULDBLOCK) // recv() timed out
             {
                 errno = 0;
-                mme->cleanupExpiredMessages(*serializer);
+                mme->cleanupExpiredMessages();
 
                 sendBufferedMessages(clientFileDescriptor, receivedProtocol, currentTmsi);
                 continue;
@@ -322,7 +322,7 @@ bool ServerApp::handleAttachRequest(int clientFileDescriptor, Protocol protocol,
                                                         attachRequest.imsi,
                                                         attachRequest.baseStationId,
                                                         clientFileDescriptor,
-                                                        serializer);
+                                                        protocol);
         if (m_tmsi.has_value())
         {
             currentTmsi = m_tmsi.value();
@@ -463,7 +463,7 @@ bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol
     {
         const SmsSendRequest& smsSendRequest = std::get<SmsSendRequest>(message.value());
 
-        auto globalSmsIds = mme->handleSmsRequest(smsSendRequest, serializer);
+        auto globalSmsIds = mme->handleSmsRequest(smsSendRequest, protocol, serializer);
         if (globalSmsIds.has_value())
         {
             for (const auto& globalSmsId : globalSmsIds.value())
@@ -507,7 +507,7 @@ bool ServerApp::handleSmsDeliveryAknowledge(int clientFileDescriptor, Protocol p
     {
         const SmsDeliveryAcknowledge& smsDeliveryAcknowledge =
                                                 std::get<SmsDeliveryAcknowledge>(message.value());
-        mme->handleSmsDeliveryAcknowledge(smsDeliveryAcknowledge, serializer);
+        mme->handleSmsDeliveryAcknowledge(smsDeliveryAcknowledge, protocol, serializer);
     }
     else
     {
@@ -539,7 +539,8 @@ void ServerApp::sendBufferedMessages(int clientFileDescriptor, Protocol protocol
     while ( (pendingPacket = baseStation->popMessageFromBuffer(currentTmsi.value())).has_value() )
     {
         PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
-                                                  static_cast<uint8_t>(protocol),
+                                                  //static_cast<uint8_t>(protocol),
+                                                  pendingPacket.value().protocolHeader,
                                                   pendingPacket.value().packetType,
                                                   pendingPacket.value().data);
     }
