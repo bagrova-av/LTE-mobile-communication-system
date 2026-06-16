@@ -183,7 +183,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
                 errno = 0;
                 mme->cleanupExpiredMessages();
 
-                sendBufferedMessages(clientFileDescriptor, receivedProtocol, currentTmsi);
+                sendBufferedMessages(clientFileDescriptor, currentTmsi);
                 continue;
             }
             else
@@ -260,7 +260,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             }
         }
 
-        sendBufferedMessages(clientFileDescriptor, receivedProtocol, currentTmsi);
+        sendBufferedMessages(clientFileDescriptor, currentTmsi);
     }
 
     if (currentTmsi.has_value())
@@ -463,7 +463,7 @@ bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol
     {
         const SmsSendRequest& smsSendRequest = std::get<SmsSendRequest>(message.value());
 
-        auto globalSmsIds = mme->handleSmsRequest(smsSendRequest, protocol, serializer);
+        auto globalSmsIds = mme->handleSmsRequest(smsSendRequest);
         if (globalSmsIds.has_value())
         {
             for (const auto& globalSmsId : globalSmsIds.value())
@@ -507,7 +507,7 @@ bool ServerApp::handleSmsDeliveryAknowledge(int clientFileDescriptor, Protocol p
     {
         const SmsDeliveryAcknowledge& smsDeliveryAcknowledge =
                                                 std::get<SmsDeliveryAcknowledge>(message.value());
-        mme->handleSmsDeliveryAcknowledge(smsDeliveryAcknowledge, protocol, serializer);
+        mme->handleSmsDeliveryAcknowledge(smsDeliveryAcknowledge);
     }
     else
     {
@@ -521,8 +521,7 @@ bool ServerApp::handleSmsDeliveryAknowledge(int clientFileDescriptor, Protocol p
     return true;
 }
 
-void ServerApp::sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
-                                     const std::optional<M_TMSI>& currentTmsi)
+void ServerApp::sendBufferedMessages(int clientFileDescriptor, const std::optional<M_TMSI>& currentTmsi)
 {
     if (!currentTmsi.has_value())
     {
@@ -539,7 +538,6 @@ void ServerApp::sendBufferedMessages(int clientFileDescriptor, Protocol protocol
     while ( (pendingPacket = baseStation->popMessageFromBuffer(currentTmsi.value())).has_value() )
     {
         PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
-                                                  //static_cast<uint8_t>(protocol),
                                                   pendingPacket.value().protocolHeader,
                                                   pendingPacket.value().packetType,
                                                   pendingPacket.value().data);

@@ -320,8 +320,14 @@ void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
         std::lock_guard<std::mutex> lock(stateMutex);
         m_tmsi = state.m_tmsi;
     }
+
     Protocol protocol = static_cast<Protocol>(dataPacket.protocolHeader);
-    auto serializer = SerializerFactory::createSerializer(protocol);
+    std::unique_ptr<SerializerInterface> serializer = SerializerFactory::createSerializer(protocol);
+    if (!serializer)
+    {
+        Logger::warning("Received data packet with the unsupported protocol");
+        return;
+    }
 
     switch (dataPacket.packetType)
     {

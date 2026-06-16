@@ -109,7 +109,8 @@ void MobilityManagmentEntity::cleanupExpiredMessages()
                                                PacketType::SMS_STATUS,
                                               currentSerializer->serialize(smsStatusReport)};
                 baseStation->pushMessageToBuffer(sms.senderTmsi, packetForBuffer);
-                Logger::info(std::format("MME: Expired SMS {} report sent to sender {}", sms.smsId, sms.senderTmsi));
+                Logger::info(std::format("MME: Expired SMS with ID = {} report sent to sender with M_TMSI = {}",
+                                         sms.smsId, sms.senderTmsi));
             }
         }
     }
@@ -162,7 +163,7 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
     M_TMSI m_tmsi = generateTMSI();
     if (!targetBaseStation->registerClient(m_tmsi, clientFileDescriptor))
     {
-        Logger::warning("Error: failed to register the client at the base station with id "
+        Logger::warning("Error: failed to register the client at the base station with ID = "
                         + std::to_string(baseStationId));
         return std::nullopt;
     }
@@ -171,7 +172,7 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
                                                                          std::chrono::system_clock::now());
     homeLocationAndEquipmentIdentityRegister->updateSubscriberStatus(imsi, SubscriberStatus::ACTIVE);
     
-    visitorLocationRegister.emplace(m_tmsi, clientsData{imei, 
+    visitorLocationRegister.emplace(m_tmsi, ClientData{imei,
                                                         subscriberRecord.value().identityData.msisdn,
                                                         baseStationId,
                                                         protocol}
@@ -280,14 +281,12 @@ void MobilityManagmentEntity::startHandover(M_TMSI m_tmsi, BaseStationId newBase
         itVlr->second.currentBaseSationId = newBaseStationId;
         
         Logger::info(std::format("MME: handover successful for client with M_TMSI = {} "
-                                "(old base station ID {} -> new base station ID {})", 
+                                "(old base station ID = {} -> new base station ID = {})",
                                     m_tmsi, oldBaseStationId, newBaseStationId));
     }
 }
 
-std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(const SmsSendRequest& request,
-                                                                            Protocol protocol,
-                                                                            const SerializerInterface& serializer)
+std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(const SmsSendRequest& request)
 {
     std::lock_guard<std::mutex> lock(mmeMutex);
 
@@ -322,73 +321,52 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
     }
 
     // Immediate delivery attempt
+    auto itReceiverTmsi = msisdnLookupTmsi.find(request.receiverMsisdn);
+    if (itReceiverTmsi == msisdnLookupTmsi.end())
+    {
+        return smsIds;
+    }
+    auto itReceiverVlr = visitorLocationRegister.find(itReceiverTmsi->second);
+    if (itReceiverVlr == visitorLocationRegister.end())
+    {
+        return smsIds;
+    }
+
+    Protocol receiverProtocol = itReceiverVlr->second.protocol;
+    auto receiverSerializer = SerializerFactory::createSerializer(receiverProtocol);
+
     size_t offset = 0;
     size_t maxTextLength = smsCenter->getMaxTextLength();
     std::string partText;
-
-    auto itRecipientTmsi = msisdnLookupTmsi.find(request.receiverMsisdn);
-    if (itRecipientTmsi != msisdnLookupTmsi.end())
+    for (const auto& smsId : smsIds.value())
     {
-        auto itRecipientVlr = visitorLocationRegister.find(itRecipientTmsi->second);
-        if (itRecipientVlr != visitorLocationRegister.end())
+        partText = request.text.substr(offset, maxTextLength);
+        offset += maxTextLength;
+
+        SmsIncomingMessage incomingMessage{itReceiverVlr->first,
+                                           itSender->second.msisdn,
+                                           smsId,
+                                           partText};
+
+        BaseStation* baseStation = getBaseStationByIdWithoutMutex(routingInfo.value().second);
+        if (!baseStation)
         {
-            M_TMSI targetTmsi = itRecipientVlr->first;
-            Protocol recipientProtocol = itRecipientVlr->second.protocol; 
-            auto recipientSerializer = SerializerFactory::createSerializer(recipientProtocol);
-
-            size_t offset = 0;
-            size_t maxLen = smsCenter->getMaxTextLength();
-
-            for (const auto& smsId : smsIds.value())
-            {
-                std::string partText = request.text.substr(offset, maxLen);
-                offset += maxLen;
-
-                SmsIncomingMessage incomingMsg{targetTmsi, itSender->second.msisdn, smsId, partText};
-                
-                BufferedPacket packetForBuffer{static_cast<uint8_t>(recipientProtocol),
-                                                PacketType::SMS_RECEIVE,
-                                                recipientSerializer->serialize(incomingMsg)};
-
-                BaseStation* baseStation = getBaseStationByIdWithoutMutex(routingInfo.value().second);
-                if (!baseStation)
-                {
-                    Logger::info("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
-                }
-                baseStation->pushMessageToBuffer(routingInfo.value().first, packetForBuffer);
-                Logger::info("MME: SMS with ID " + std::to_string(smsId)
-                            + " routed immediately to the base station " + std::to_string(routingInfo.value().second));
-            }
+            Logger::info("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
+            return smsIds;
         }
+
+        BufferedPacket packetForBuffer{static_cast<uint8_t>(receiverProtocol),
+                                       PacketType::SMS_RECEIVE,
+                                       receiverSerializer->serialize(incomingMessage)};
+        baseStation->pushMessageToBuffer(routingInfo.value().first, packetForBuffer);
+        Logger::info("MME: SMS with ID = " + std::to_string(smsId)
+                    + " routed immediately to the base station " + std::to_string(routingInfo.value().second));
     }
-    // for (const auto& smsId : smsIds.value())
-    // {
-    //     partText = request.text.substr(offset, maxTextLength);
-    //     offset += maxTextLength;
 
-    //     SmsIncomingMessage message{routingInfo.value().first,
-    //                                itSender->second.msisdn,
-    //                                smsId,
-    //                                partText};
-    //     BaseStation* baseStation = getBaseStationByIdWithoutMutex(routingInfo.value().second);
-    //     if (!baseStation)
-    //     {
-    //         Logger::info("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
-    //     }
-
-    //     BufferedPacket packetForBuffer{static_cast<uint8_t>(protocol),
-    //                                    PacketType::SMS_RECEIVE,
-    //                                    serializer.serialize(message)};
-    //     baseStation->pushMessageToBuffer(routingInfo.value().first, packetForBuffer);
-    //     Logger::info("MME: SMS with ID " + std::to_string(smsId)
-    //                 + " routed immediately to the base station " + std::to_string(routingInfo.value().second));
-    // }
     return smsIds;
 }
 
-void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& message,
-                                                          Protocol protocol,
-                                                          const SerializerInterface& serializer)
+void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& message)
 {
     std::lock_guard<std::mutex> lock(mmeMutex);
 
@@ -398,9 +376,9 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
         return;
     }
 
-    auto it = visitorLocationRegister.find(smsRecord->senderTmsi);
+    auto itSender = visitorLocationRegister.find(smsRecord->senderTmsi);
     bool isSenderOnline = false;
-    if (it != visitorLocationRegister.end())
+    if (itSender != visitorLocationRegister.end())
     {
         isSenderOnline = true;
     }
@@ -411,19 +389,22 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
         return;
     }
 
-    Logger::debug("MME: SMS with ID " + std::to_string(message.smsId)
+    Logger::debug("MME: SMS with ID = " + std::to_string(message.smsId)
                   + " marked as waiting delivery report in the SMS center");
     BaseStation* baseStation = getBaseStationByTmsiWithoutMutex(smsRecord.value().senderTmsi);
     if (baseStation)
     {
+        Protocol senderProtocol = itSender->second.protocol;
+        auto senderSerializer = SerializerFactory::createSerializer(senderProtocol);
+
         SmsStatusReport smsStatusReport{smsRecord.value().senderTmsi, message.smsId, message.status};
-        BufferedPacket packetForBuffer{static_cast<uint8_t>(protocol),
+        BufferedPacket packetForBuffer{static_cast<uint8_t>(senderProtocol),
                                         PacketType::SMS_STATUS,
-                                        serializer.serialize(smsStatusReport)};
+                                        senderSerializer->serialize(smsStatusReport)};
         if (baseStation->pushMessageToBuffer(smsRecord.value().senderTmsi, packetForBuffer))
         {
-            Logger::info("MME: Status report for SMS ID " + std::to_string(message.smsId)
-            + " sent to the sender " + std::to_string(smsRecord->senderTmsi));
+            Logger::info("MME: Status report for SMS with ID = " + std::to_string(message.smsId)
+            + " sent to the sender with M_TMSI = " + std::to_string(smsRecord->senderTmsi));
         }
     }
 }

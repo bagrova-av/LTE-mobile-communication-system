@@ -40,8 +40,7 @@ private:
 
     bool sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId);
 
-    void sendBufferedMessages(int clientFileDescriptor, Protocol protocol,
-                              const std::optional<M_TMSI>& currentTmsi);
+    void sendBufferedMessages(int clientFileDescriptor, const std::optional<M_TMSI>& currentTmsi);
 
     bool handleRrcSearch(int clientFileDescriptor, Protocol protocol,
                         const SerializerInterface& serializer, const BytesBuffer& data);

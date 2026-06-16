@@ -401,7 +401,6 @@ bool parseEpcJSON(const std::string& configPath, EpcConfig& epcConfig)
             return false;
         }
         Seconds simtelTtlSec = data["simtel_ttl_sec"].get<Seconds>();
-        //epcConfig.simtelTtlSec = data["simtel_ttl_sec"].get<Seconds>();
         epcConfig.simtelTtlSec = std::chrono::seconds(simtelTtlSec);
         
         if (!data.contains("hlrEir"))
@@ -595,84 +594,6 @@ bool parseAddressBook(const std::string& configPath, const IMSI& myImsi,
     configFile.close();
     return true;
 }
-
-// bool parseHlrEirRecordsJSON(const std::string& configPath, std::vector<HlrEirRecord>& records)
-// {
-//     std::ifstream configFile(configPath);
-//     if (!configFile.is_open())
-//     {
-//         Logger::error("Error: could not open HLR(+EIR): " + configPath);
-//         return false;
-//     }
-
-//     json data;
-//     try
-//     {
-//         configFile >> data;
-//         for (const auto& item : data)
-//         {
-//             if (!item.contains("imsi"))
-//             {
-//                 return false;
-//             }
-//             std::string imsiTemp = item["imsi"].get<std::string>();
-//             if (!validateIMSI(imsiTemp))
-//             {
-//                 return false;
-//             }
-
-//             if (!item.contains("imei"))
-//             {
-//                 return false;
-//             }
-//             std::string imeiTemp = item["imei"].get<std::string>();
-//             if (!validateIMEI(imeiTemp))
-//             {
-//                 return false;
-//             }
-
-//             if (!item.contains("msisdn"))
-//             {
-//                 return false;
-//             }
-//             std::string msisdnTemp = item["msisdn"].get<std::string>();
-//             if (!validateMSISDN(msisdnTemp))
-//             {
-//                 return false;
-//             }
-
-//             if (!item.contains("status"))
-//             {
-//                 return false;
-//             }
-//             std::optional<SubscriberStatus> status = convertStringToStatus(item["status"].get<std::string>());
-//             if (!status.has_value())
-//             {
-//                 return false;
-//             }
-
-//             IdentitySubscriberData identityData{imsiTemp,
-//                                                 imeiTemp,
-//                                                 msisdnTemp,
-//                                                 status.value()};
-
-//             SessionSubscriberData sessionData;
-//             sessionData.lastActivityTime = std::nullopt;
-//             sessionData.currentMmeId = std::nullopt;
-
-//             records.emplace_back(HlrEirRecord{identityData, sessionData});
-//         }
-//     }
-//     catch(const std::exception& ex)
-//     {
-//         Logger::error(std::format("Error: Failed to process JSON file with HLR(+EIR).\nDetails: {}", 
-//                                     ex.what()));
-//         return false;
-//     }
-
-//     configFile.close();
-//     return true;
-// }
 
 bool parseMmeJSON(const std::string& configPath, std::vector<MmeConfig>& mmes)
 {

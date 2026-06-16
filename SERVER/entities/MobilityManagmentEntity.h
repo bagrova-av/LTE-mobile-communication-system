@@ -10,7 +10,7 @@
 #include "../../CORE/network/NetworkMessages.h"
 #include "../../CORE/network/SerializerInterface.h"
 
-struct clientsData
+struct ClientData
 {
     IMEI imei;
     MSISDN msisdn;
@@ -23,7 +23,7 @@ class MobilityManagmentEntity
 private:
     MmeConfig config;
     std::vector<std::unique_ptr<BaseStation>> baseStations;
-    std::unordered_map<M_TMSI, clientsData> visitorLocationRegister;
+    std::unordered_map<M_TMSI, ClientData> visitorLocationRegister;
     std::unique_ptr<HlrEirInterface> homeLocationAndEquipmentIdentityRegister;
     std::unique_ptr<SmsCenter> smsCenter;
     
@@ -56,10 +56,8 @@ public:
                                        Protocol protocol);
     bool detachClient(M_TMSI m_tmsi);
     void startHandover(M_TMSI m_tmsi, BaseStationId newBaseStationId);
-    std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request, Protocol protocol,
-                                                       const SerializerInterface& serializer);
-    void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages, Protocol protocol,
-                                      const SerializerInterface& serializer);
+    std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request);
+    void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages);
 };
 
 #endif
