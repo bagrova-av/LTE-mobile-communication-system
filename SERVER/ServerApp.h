@@ -10,6 +10,8 @@
 #include "./entities/MobilityManagmentEntity.h"
 #include "SerializerInterface.h"
 #include "../../CORE/entitiesConfigs/EpcConfig.h"
+#include "../CORE/network/SerializerFactory.h"
+#include "../COMMON/logging/Logger.h"
 
 class ServerApp
 {
@@ -31,6 +33,9 @@ private:
 
     void closeClientConnection(int clientFileDescriptor);
     void checkActiveClientsCount();
+
+    template<typename T>
+    bool sendResponse(int fd, Protocol protocol, PacketType packetType, const T& payload);
 
     bool sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId);
     bool sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason);
@@ -84,6 +89,25 @@ inline const LocationPoint3D& ServerApp::getLocation() const
 inline void ServerApp::stop()
 {
     isRunning = false;
+}
+
+template<typename T>
+bool ServerApp::sendResponse(int clientFileDescriptor, Protocol protocol,
+                            PacketType packetType, const T& payload)
+{
+    auto serializer = SerializerFactory::createSerializer(protocol);
+    if (!serializer)
+    {
+        Logger::warning("Received unknown protocol header from client");
+        return false;
+    }
+
+    BytesBuffer data = serializer->serialize(payload);
+
+    return PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
+                                                    static_cast<uint8_t>(protocol),
+                                                    packetType,
+                                                    data);
 }
 
 #endif

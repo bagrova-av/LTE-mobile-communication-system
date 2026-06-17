@@ -1,7 +1,7 @@
 #include "ServerApp.h"
 #include "../COMMON/utils.h"
 #include "../COMMON/parserUtils.h"
-#include "../CORE/network/SerializerFactory.h"
+//#include "../CORE/network/SerializerFactory.h"
 #include "../CORE/PacketTransporter.h"
 #include "../COMMON/ConsoleProvider.h"
 
@@ -175,7 +175,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
     {
         ConsoleProvider::executeSafePrint([]()
                                         {
-                                            std::cout << "\n\n[System] Network kernel stopped due to TTL. "
+                                            std::cout << "\n\n[System] Network thread finished due to TTL. "
                                                       << "Calculator is still online" << '\n';
                                         }
         );
@@ -590,150 +590,68 @@ void ServerApp::sendBufferedMessages(int clientFileDescriptor, const std::option
 
 bool ServerApp::sendRrcResponse(int clientFileDescriptor, Protocol protocol, BaseStationId baseStationId)
 {
-    RrcResponse rrcResponse{baseStationId};
-
-    auto serializer = SerializerFactory::createSerializer(protocol);
-    if (!serializer)
-    {
-        Logger::warning("Received unknown protocol header from client");
-        return false;
-    }
-
-    BytesBuffer data = serializer->serialize(rrcResponse);
-    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
-                                              static_cast<uint8_t>(protocol),
-                                              PacketType::RRC_RESPONSE,
-                                              data);
-    return true;
+    return sendResponse(clientFileDescriptor,
+                        protocol,
+                        PacketType::RRC_RESPONSE,
+                        RrcResponse{baseStationId});
 }
 
 bool ServerApp::sendRrcReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
 {
-    RrcReject rrcReject{reason};
-    auto serializer = SerializerFactory::createSerializer(protocol);
-    if (!serializer)
-    {
-        Logger::warning("Received unknown protocol header from client");
-        return false;
-    }
-
-    BytesBuffer data = serializer->serialize(rrcReject);
-    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
-                                              static_cast<uint8_t>(protocol),
-                                              PacketType::RRC_REJECT,
-                                              data);
-    return true;
+    return sendResponse(clientFileDescriptor,
+                        protocol,
+                        PacketType::RRC_REJECT,
+                        RrcReject{reason});
 }
 
 bool ServerApp::sendAttachAccept(int clientFileDescriptor, Protocol protocol, M_TMSI m_tmsi)
 {
-    AttachAccept attachAccept{m_tmsi};
-
-    auto serializer = SerializerFactory::createSerializer(protocol);
-    if (!serializer)
-    {
-        Logger::warning("Received unknown protocol header from client");
-        return false;
-    }
-
-    BytesBuffer data = serializer->serialize(attachAccept);
-    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
-                                              static_cast<uint8_t>(protocol),
-                                              PacketType::ATTACH_ACCEPT,
-                                              data);
-    return true;
+    return sendResponse(clientFileDescriptor,
+                        protocol,
+                        PacketType::ATTACH_ACCEPT,
+                        AttachAccept{m_tmsi});
 }
 
 bool ServerApp::sendAttachReject(int clientFileDescriptor, Protocol protocol, const std::string& reason)
 {
-    AttachReject attachReject{reason};
-    auto serializer = SerializerFactory::createSerializer(protocol);
-    if (!serializer)
-    {
-        Logger::warning("Received unknown protocol header from client");
-        return false;
-    }
-
-    BytesBuffer data = serializer->serialize(attachReject);
-    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
-                                              static_cast<uint8_t>(protocol),
-                                              PacketType::ATTACH_REJECT,
-                                              data);
-    return true;
+    return sendResponse(clientFileDescriptor,
+                        protocol,
+                        PacketType::ATTACH_REJECT,
+                        AttachReject{reason});
 }
 
 bool ServerApp::sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance)
 {
-    DistanceResponse distanceResponse{distance};
-    auto serializer = SerializerFactory::createSerializer(protocol);
-    if (!serializer)
-    {
-        Logger::warning("Received unknown protocol header from client");
-        return false;
-    }
-
-    BytesBuffer data = serializer->serialize(distanceResponse);
-    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
-                                              static_cast<uint8_t>(protocol),
-                                              PacketType::DISTANCE,
-                                              data);
-    return true;
+    return sendResponse(clientFileDescriptor,
+                        protocol,
+                        PacketType::DISTANCE,
+                        DistanceResponse{distance});
 }
 
 bool ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message)
 {
-    ErrorResponse errorResponse{message};
-    auto serializer = SerializerFactory::createSerializer(protocol);
-    if (!serializer)
-    {
-        Logger::warning("Received unknown protocol header from client");
-        return false;
-    }
-
-    BytesBuffer data = serializer->serialize(errorResponse);
-    PacketTransporter::sendDataPacketResponse(clientFileDescriptor, 
-                                              static_cast<uint8_t>(protocol),
-                                              PacketType::ERROR_MESSAGE,
-                                              data);
-    return true;
+    return sendResponse(clientFileDescriptor,
+                        protocol,
+                        PacketType::ERROR_MESSAGE,
+                        ErrorResponse{message});
 }
 
 bool ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol,
                                     SmsId tempSmsId, SmsId globalSmsId, uint8_t totalParts)
 {
-    SmsSubmitAccept smsSubmitAccept{tempSmsId, globalSmsId, totalParts};
-    auto serializer = SerializerFactory::createSerializer(protocol);
-    if (!serializer)
-    {
-        Logger::warning("Received unknown protocol header from client");
-        return false;
-    }
-
-    BytesBuffer data = serializer->serialize(smsSubmitAccept);
-    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
-                                              static_cast<uint8_t>(protocol),
-                                              PacketType::SMS_SUBMIT_ACCEPT,
-                                              data);
-    return true;
+    return sendResponse(clientFileDescriptor,
+                        protocol,
+                        PacketType::SMS_SUBMIT_ACCEPT,
+                        SmsSubmitAccept{tempSmsId, globalSmsId, totalParts});
 }
 
 bool ServerApp::sendSmsSubmitReject(int clientFileDescriptor, Protocol protocol,
                                     SmsId tempSmsId, const std::string& reason)
 {
-    SmsSubmitReject smsSubmitReject{tempSmsId, reason};
-    auto serializer = SerializerFactory::createSerializer(protocol);
-    if (!serializer)
-    {
-        Logger::warning("Received unknown protocol header from client");
-        return false;
-    }
-
-    BytesBuffer data = serializer->serialize(smsSubmitReject);
-    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
-                                              static_cast<uint8_t>(protocol),
-                                              PacketType::SMS_SUBMIT_REJECT,
-                                              data);
-    return true;
+    return sendResponse(clientFileDescriptor,
+                        protocol,
+                        PacketType::SMS_SUBMIT_REJECT,
+                        SmsSubmitReject{tempSmsId, reason});
 }
 
 void ServerApp::process()
