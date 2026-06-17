@@ -463,11 +463,26 @@ bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol
     {
         const SmsSendRequest& smsSendRequest = std::get<SmsSendRequest>(message.value());
 
-        auto globalSmsIds = mme->handleSmsRequest(smsSendRequest);
-        if (globalSmsIds.has_value())
+        // auto globalSmsIds = mme->handleSmsRequest(smsSendRequest);
+        // if (globalSmsIds.has_value())
+        // {
+        //     size_t totalParts = globalSmsIds.value().size();
+        //     for (const auto& globalSmsId : globalSmsIds.value())
+        //     {
+        //         if (!sendSmsSubmitAccept(clientFileDescriptor, protocol,
+        //                                 smsSendRequest.smsId, globalSmsId, totalParts))
+        //         {
+        //             closeClientConnection(clientFileDescriptor);
+        //             return false;
+        //         }
+        //     }
+        // }
+        auto result = mme->handleSmsRequest(smsSendRequest);
+        if (std::holds_alternative<std::vector<SmsId>>(result))
         {
-            size_t totalParts = globalSmsIds.value().size();
-            for (const auto& globalSmsId : globalSmsIds.value())
+            const auto& globalSmsIds = std::get<std::vector<SmsId>>(result);
+            size_t totalParts = globalSmsIds.size();
+            for (const auto& globalSmsId : globalSmsIds)
             {
                 if (!sendSmsSubmitAccept(clientFileDescriptor, protocol,
                                         smsSendRequest.smsId, globalSmsId, totalParts))
@@ -481,7 +496,7 @@ bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol
         {
             if (!sendSmsSubmitReject(clientFileDescriptor, protocol, smsSendRequest.smsId,
                                     "The SMS with ID = " + std::to_string(smsSendRequest.smsId)
-                                    + " was not delivered"))
+                                    + " was not delivered (" + std::get<std::string>(result) + ")"))
             {
                 closeClientConnection(clientFileDescriptor);
                 return false;

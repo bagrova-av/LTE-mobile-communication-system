@@ -18,6 +18,8 @@ struct ClientData
     Protocol protocol;
 };
 
+using SmsResult = std::variant<std::vector<SmsId>, std::string>;
+
 class MobilityManagmentEntity
 {
 private:
@@ -56,7 +58,7 @@ public:
                                        Protocol protocol);
     bool detachClient(M_TMSI m_tmsi);
     void startHandover(M_TMSI m_tmsi, BaseStationId newBaseStationId);
-    std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request);
+    SmsResult handleSmsRequest(const SmsSendRequest& request);
     void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages);
 };
 

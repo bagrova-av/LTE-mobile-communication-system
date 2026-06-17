@@ -287,7 +287,7 @@ void MobilityManagmentEntity::startHandover(M_TMSI m_tmsi, BaseStationId newBase
     }
 }
 
-std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(const SmsSendRequest& request)
+SmsResult MobilityManagmentEntity::handleSmsRequest(const SmsSendRequest& request)
 {
     std::lock_guard<std::mutex> lock(mmeMutex);
 
@@ -296,21 +296,21 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
     {
         Logger::warning("MME: The sender " + request.receiverMsisdn + "is not registered in the VLR, "
                     "so it is impossible to deliver SMS");
-        return std::nullopt;
+        return std::string("Sender not registered in VLR");
     }
 
     auto receiverHlr = homeLocationAndEquipmentIdentityRegister->getSubscriberByMsisdn(request.receiverMsisdn);
     if (!receiverHlr.has_value())
     {
         Logger::warning("MME: SMS rejected because the receiver MSISDN unknown in HLR and EIR");
-        return std::nullopt;
+        return std::string("Receiver MSISDN unknown in HLR and EIR");
     }
 
     auto globalSmsIds = smsCenter->storeMessage(request.senderTmsi, itSender->second.msisdn,
                                                 request.receiverMsisdn, request.text);
     if (!globalSmsIds.has_value())
     {
-        return std::nullopt;
+        return std::string("Failed to store message in SMSC because SMSC buffer is full");
     }
 
     auto routingInfo = findRoutingInfoForSms(request.receiverMsisdn);
@@ -318,19 +318,19 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
     {
         Logger::info("MME: receiver " + request.receiverMsisdn + " offline. "
                         "SMS stored in SMSC");
-        return globalSmsIds;
+        return globalSmsIds.value();
     }
 
     // Immediate delivery attempt
     auto itReceiverTmsi = msisdnLookupTmsi.find(request.receiverMsisdn);
     if (itReceiverTmsi == msisdnLookupTmsi.end())
     {
-        return globalSmsIds;
+        return globalSmsIds.value();
     }
     auto itReceiverVlr = visitorLocationRegister.find(itReceiverTmsi->second);
     if (itReceiverVlr == visitorLocationRegister.end())
     {
-        return globalSmsIds;
+        return globalSmsIds.value();
     }
 
     Protocol receiverProtocol = itReceiverVlr->second.protocol;
@@ -353,7 +353,7 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
         if (!baseStation)
         {
             Logger::warning("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
-            return globalSmsIds;
+            return globalSmsIds.value();
         }
 
         NetworkDataPacket packetForBuffer{static_cast<uint8_t>(receiverProtocol),
@@ -364,7 +364,7 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
                     + " routed immediately to the base station " + std::to_string(routingInfo.value().second));
     }
 
-    return globalSmsIds;
+    return globalSmsIds.value();
 }
 
 void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& message)
