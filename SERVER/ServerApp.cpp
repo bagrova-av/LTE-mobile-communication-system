@@ -3,6 +3,7 @@
 #include "../COMMON/parserUtils.h"
 #include "../CORE/network/SerializerFactory.h"
 #include "../CORE/PacketTransporter.h"
+#include "../COMMON/ConsoleProvider.h"
 
 #include <algorithm>
 #include <iostream>
@@ -83,6 +84,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
     if (!serverSocket.startListening(listeningPort))
     {
         isRunning = false;
+        isNetworkActive = false;
         startPromise.set_value(false);
         return;
     }
@@ -90,7 +92,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
 
     serverSocket.setAcceptTimeout(1.0); // 1 second
 
-    while(isRunning)
+    while(isRunning && isNetworkActive)
     {
         int clientFileDescriptor = serverSocket.acceptClientConnection();
         if (clientFileDescriptor == -1)
@@ -105,13 +107,15 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
                     if (idleDuration >= epcConfig.simtelTtlSec)
                     {
                         Logger::info("SimTel TTL reached. Shutting down server...");
-                        isRunning = false;
+                        //isRunning = false;
+                        isNetworkActive = false;
+                        break;
                     }
                 }
                 errno = 0;
                 continue;
             }
-            if (!isRunning)
+            if (!isNetworkActive)//if (!isRunning)
             {
                 Logger::info("Network thread detected shutdown signal");
                 break;
@@ -158,7 +162,24 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
         }
     }
     Logger::info("All clients finished. Network thread shutting down");
-    std::cout << "\n\nServer network thread stopped. Press ENTER to exit" << '\n';
+
+    if (!isRunning)
+    {
+        ConsoleProvider::executeSafePrint([]()
+                                        {
+                                            std::cout << "\n\n[Info] Network thread finished (shutdown)" << '\n';
+                                        }, false
+        );
+    }
+    else if (!isNetworkActive)
+    {
+        ConsoleProvider::executeSafePrint([]()
+                                        {
+                                            std::cout << "\n\n[System] Network kernel stopped due to TTL. "
+                                                      << "Calculator is still online" << '\n';
+                                        }
+        );
+    }
 }
 
 void ServerApp::processSingleClient(int clientFileDescriptor)
@@ -718,6 +739,7 @@ bool ServerApp::sendSmsSubmitReject(int clientFileDescriptor, Protocol protocol,
 void ServerApp::process()
 {
     isRunning = true;
+    isNetworkActive = true;
 
     std::promise<bool> startPromise;
     std::future<bool> startFuture = startPromise.get_future();
@@ -729,6 +751,7 @@ void ServerApp::process()
     {
         Logger::error("Shutting down because network thread failed to start listening");
         isRunning = false;
+        isNetworkActive = false;
         if (networkThread.joinable())
         {
             networkThread.join();
@@ -804,9 +827,16 @@ void ServerApp::process()
         CoordinatesType distance = location.distanceTo(targetLocation);
         Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
                      + " is " + std::to_string(distance));
-        std::cout << "Target point: " << targetLocation << " => Distance: " << distance << '\n';
+        //std::cout << "Target point: " << targetLocation << " => Distance: " << distance << '\n';
+        ConsoleProvider::executeSafePrint([&]()
+                                         {
+                                            std::cout << "Target point: " << targetLocation
+                                                      << " => Distance: " << distance << '\n';
+                                         },false
+        );
     }
 
+    isNetworkActive = false;
     if (networkThread.joinable())
     {
         networkThread.join();

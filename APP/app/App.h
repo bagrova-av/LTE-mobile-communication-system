@@ -68,6 +68,8 @@ public:
     std::optional<AddressBookEntry> getAddressBookEntryByShortcut(size_t shortcut) const;
     const std::map<size_t, AddressBookEntry>& getAddressBook() const;
 
+    void notifyUser(const std::string& message);
+
     void addSentSmsRecord(const SentSmsRecord& smsRecord);
     void addReceivedSmsRecord(const ReceivedSmsRecord& smsRecord);
     std::vector<ReceivedSmsRecord> getReceivedSmsHistory() const;

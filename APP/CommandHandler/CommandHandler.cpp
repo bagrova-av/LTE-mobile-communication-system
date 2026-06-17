@@ -9,6 +9,7 @@
 #include "CommandSms.h"
 #include "CommandSentSms.h"
 #include "CommandReceivedSms.h"
+#include "../../COMMON/ConsoleProvider.h"
 
 #include <iostream>
 #include <sstream>
@@ -56,7 +57,7 @@ void CommandHandler::printMenuHeader() const
 
 void CommandHandler::printAddressBook() const
 {
-    std::map<size_t, AddressBookEntry> addressBook = app.getAddressBook();
+    const std::map<size_t, AddressBookEntry>& addressBook = app.getAddressBook();
     if (addressBook.empty())
     {
         return;
@@ -83,12 +84,16 @@ void CommandHandler::process()
 
     while (true)
     {
-        app.processResponses();
+        //app.processResponses();
 
-        printAddressBook();
-        printMenuHeader();
-        std::cout << "Please, enter the command: ";
+        ConsoleProvider::executeSafePrint([this]()
+                                         {
+                                            printAddressBook();
+                                            printMenuHeader();
+                                         }
+        );
 
+        //std::cout << "Please, enter the command: ";
         if (!std::getline(std::cin, commandStr))
         {
             std::cout << '\n';
@@ -123,12 +128,12 @@ void CommandHandler::process()
         std::this_thread::sleep_for(std::chrono::milliseconds(90));
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    std::cout << '\n' << "Processing remaining server responses...";
-    if (!app.processResponses())
-    {
-        std::cout << '\n' << "There are no new responses from the server" << '\n';
-    }
+    // std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    // std::cout << '\n' << "Processing remaining server responses...";
+    // if (!app.processResponses())
+    // {
+    //     std::cout << '\n' << "There are no new responses from the server" << '\n';
+    // }
 
     std::cout << "TelecomAppClient finished\n";
 }

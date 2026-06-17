@@ -1,4 +1,5 @@
 #include "Logger.h"
+#include "../ConsoleProvider.h"
 
 #include <iostream>
 
@@ -24,7 +25,12 @@ void Logger::log(LogLevel level, std::string_view message)
 
     if (level == LogLevel::ERROR || level == LogLevel::WARNING)
     {
-        std::cerr << message << '\n';
+        ConsoleProvider::executeSafePrint([message]()
+                                        {
+                                            std::cerr << message << '\n';
+                                        }
+        );
+        //std::cerr << message << '\n';
     }
 }
 

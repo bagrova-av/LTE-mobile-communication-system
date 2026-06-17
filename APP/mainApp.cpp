@@ -8,6 +8,7 @@
 #include "../CORE/NetworkAddress.h"
 #include "../../COMMON/utils.h"
 #include "../COMMON/parserUtils.h"
+#include "../COMMON/ConsoleProvider.h"
 
 std::optional<std::tuple<AppConfig, LocationPoint3D, std::map<size_t, AddressBookEntry>>>
                                                     loadConfiguration(int argc, char** argv)
@@ -55,6 +56,8 @@ int main(int argc, char** argv)
 {
     Logger::setMinimumLevel(LogLevel::DEBUG);
     initLogger(argv[0], "telecomAppClient_PID");
+
+    ConsoleProvider::setInvitation("Please, enter the command: ");
 
     auto resultConfiguration = loadConfiguration(argc, argv);
     if (!resultConfiguration.has_value())

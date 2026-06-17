@@ -19,6 +19,7 @@ private:
     const Port listeningPort;
     const LocationPoint3D location;
     std::atomic<bool> isRunning;
+    std::atomic<bool> isNetworkActive;
     ServerSocket serverSocket;
     std::vector<std::future<void>> activeClientsFutures;
     std::unique_ptr<MobilityManagmentEntity> mme;
