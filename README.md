@@ -203,6 +203,7 @@ graph TD
 │   │   ├── FileLogger.h | .cpp
 │   │   ├── Logger.h | .cpp
 │   │   └── LoggerInterface.h
+│   ├── ConsoleProvider.h | .cpp
 │   ├── constants.h
 │   ├── ThreadSafeQueue.h
 │   ├── networkUtils.h | .cpp
@@ -283,6 +284,7 @@ graph TD
 - **`SmsStorage`** - класс, хранящий полученные и отправленный сообщения конкретным клиентом
 - **`NetworkTask`** - описание сетевых команд, обрабатываемых клиентом
 - **`NetworkMessages`** - описание сетевых пакетов
+- **`ConsoleProvider`** - класс для синхронизации вывода в консоль из разных потоков
 - **`types`** – пользовательские типы данных, описывающие доменную модель (IPv4, IMSI, IMEI, Nodes, Port, Point3D, Protocol)
 - **`ThreadSafeQueue`**- потокобезопасная очередь
 - **`utils`** – вспомогательные функции
