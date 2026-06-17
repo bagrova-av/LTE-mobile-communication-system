@@ -62,6 +62,11 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                     {
                         totalSize = sizeof(SmsId) + sizeof(SmsId);
                     }
+                    else if constexpr (std::is_same_v<T, SmsSubmitReject>)
+                    {
+                        totalSize = sizeof(SmsId)
+                                    + sizeof(uint32_t) + arg.reason.length();
+                    }
                     else if constexpr (std::is_same_v<T, SmsIncomingMessage>)
                     {
                         totalSize = sizeof(M_TMSI)
@@ -144,6 +149,11 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                     {
                         writeValue(dataNetworkFormat, arg.tempId, offset);
                         writeValue(dataNetworkFormat, arg.globalId, offset);
+                    }
+                    else if constexpr (std::is_same_v<T, SmsSubmitReject>)
+                    {
+                        writeValue(dataNetworkFormat, arg.tempId, offset);
+                        writeString(dataNetworkFormat, arg.reason, offset);
                     }
                     else if constexpr (std::is_same_v<T, SmsIncomingMessage>)
                     {
@@ -367,6 +377,22 @@ std::optional<NetworkMessage> BinarySerializer::deserialize(PacketType packetTyp
             }
 
             return SmsSubmitAccept{ tempId.value(), globalId.value() };
+        }
+        case PacketType::SMS_SUBMIT_REJECT :
+        {
+            std::optional<SmsId> tempId = readValue<SmsId>(dataNetworkFormat, offset);
+            if (!tempId.has_value())
+            {
+                return std::nullopt;
+            }
+
+            std::optional<std::string> reason = readString(dataNetworkFormat, offset);
+            if (!reason.has_value())
+            {
+                return std::nullopt;
+            }
+
+            return SmsSubmitReject{ tempId.value(), reason.value() };
         }
         case PacketType::SMS_RECEIVE :
         {

@@ -53,13 +53,13 @@ bool BaseStation::pushMessageToBuffer(M_TMSI m_tmsi, const NetworkDataPacket& da
         return false;
     }
 
-    if (hasEnoughSpaceInBufferWithoutMutex(clientContext, data))
+    if (!hasEnoughSpaceInBufferWithoutMutex(clientContext, data))
     {
-        clientContext->messageBuffer.push(data);
-        clientContext->currentBufferBytesSize += getBufferPacketSize(data);
-        return true;
+        return false;
     }
-    return false;
+    clientContext->messageBuffer.push(data);
+    clientContext->currentBufferBytesSize += getBufferPacketSize(data);
+    return true;
 }
 
 std::optional<NetworkDataPacket> BaseStation::popMessageFromBuffer(M_TMSI m_tmsi)

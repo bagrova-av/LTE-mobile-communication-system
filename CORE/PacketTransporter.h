@@ -15,6 +15,7 @@ enum class PacketType : uint8_t
     ATTACH_REJECT,
     SMS_SEND,
     SMS_SUBMIT_ACCEPT,
+    SMS_SUBMIT_REJECT,
     SMS_RECEIVE,
     SMS_DELIVERY_ACKNOWLEDGE,
     SMS_STATUS,

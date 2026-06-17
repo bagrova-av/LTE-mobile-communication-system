@@ -294,7 +294,7 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
     auto itSender = visitorLocationRegister.find(request.senderTmsi);
     if (itSender == visitorLocationRegister.end())
     {
-        Logger::info("MME: The sender " + request.receiverMsisdn + "is not registered in the VLR, "
+        Logger::warning("MME: The sender " + request.receiverMsisdn + "is not registered in the VLR, "
                     "so it is impossible to deliver SMS");
         return std::nullopt;
     }
@@ -306,9 +306,9 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
         return std::nullopt;
     }
 
-    auto smsIds = smsCenter->storeMessage(request.senderTmsi, itSender->second.msisdn,
-                                          request.receiverMsisdn, request.text);
-    if (!smsIds.has_value())
+    auto globalSmsIds = smsCenter->storeMessage(request.senderTmsi, itSender->second.msisdn,
+                                                request.receiverMsisdn, request.text);
+    if (!globalSmsIds.has_value())
     {
         return std::nullopt;
     }
@@ -318,19 +318,19 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
     {
         Logger::info("MME: receiver " + request.receiverMsisdn + " offline. "
                         "SMS stored in SMSC");
-        return smsIds;
+        return globalSmsIds;
     }
 
     // Immediate delivery attempt
     auto itReceiverTmsi = msisdnLookupTmsi.find(request.receiverMsisdn);
     if (itReceiverTmsi == msisdnLookupTmsi.end())
     {
-        return smsIds;
+        return globalSmsIds;
     }
     auto itReceiverVlr = visitorLocationRegister.find(itReceiverTmsi->second);
     if (itReceiverVlr == visitorLocationRegister.end())
     {
-        return smsIds;
+        return globalSmsIds;
     }
 
     Protocol receiverProtocol = itReceiverVlr->second.protocol;
@@ -339,7 +339,7 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
     size_t offset = 0;
     size_t maxTextLength = smsCenter->getMaxTextLength();
     std::string partText;
-    for (const auto& smsId : smsIds.value())
+    for (const auto& smsId : globalSmsIds.value())
     {
         partText = request.text.substr(offset, maxTextLength);
         offset += maxTextLength;
@@ -352,8 +352,8 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
         BaseStation* baseStation = getBaseStationByIdWithoutMutex(routingInfo.value().second);
         if (!baseStation)
         {
-            Logger::info("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
-            return smsIds;
+            Logger::warning("MME: error when finding the receiver's "+ request.receiverMsisdn + " base station");
+            return globalSmsIds;
         }
 
         NetworkDataPacket packetForBuffer{static_cast<uint8_t>(receiverProtocol),
@@ -364,7 +364,7 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
                     + " routed immediately to the base station " + std::to_string(routingInfo.value().second));
     }
 
-    return smsIds;
+    return globalSmsIds;
 }
 
 void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& message)

@@ -356,6 +356,24 @@ void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
             }
             break;
         }
+        case PacketType::SMS_SUBMIT_REJECT :
+        {
+            Logger::debug("Client received packet of type: SMS_SUBMIT_REJECT");
+            const auto& message = serializer->deserialize(PacketType::SMS_SUBMIT_REJECT,
+                                                          dataPacket.data);
+            if (message.has_value())
+            {
+                const auto& submitReject = std::get<SmsSubmitReject>(message.value());
+                smsStorage.updateSmsStatusByTempId(submitReject.tempId, SmsDeliveryStatus::FAILED);
+                responsesQueue.push(submitReject.reason);
+            }
+            else
+            {
+                Logger::error("Failed to deserialize SMS_SUBMIT_REJECT packet");
+                responsesQueue.push("Received deformed network data packet");
+            }
+            break;
+        }
         case PacketType::SMS_RECEIVE :
         {
             Logger::debug("Client received packet of type: SMS_RECEIVE");

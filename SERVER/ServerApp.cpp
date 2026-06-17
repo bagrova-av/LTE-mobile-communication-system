@@ -207,7 +207,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             case PacketType::RRC_SEARCH :
             {
                 if (!handleRrcSearch(clientFileDescriptor, receivedProtocol,
-                                *serializer, dataPacket.value().data))
+                                     *serializer, dataPacket.value().data))
                 {
                     return;
                 }
@@ -216,7 +216,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             case PacketType::ATTACH_REQUEST :
             {
                 if (!handleAttachRequest(clientFileDescriptor, receivedProtocol,
-                                    *serializer, dataPacket.value().data, currentTmsi))
+                                         *serializer, dataPacket.value().data, currentTmsi))
                 {
                     return;
                 }
@@ -225,7 +225,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             case PacketType::LOCATION :
             {
                 if (!handleLocationRequest(clientFileDescriptor, receivedProtocol,
-                                     *serializer, dataPacket.value().data, currentTmsi))
+                                           *serializer, dataPacket.value().data, currentTmsi))
                 {
                     return;
                 }
@@ -234,7 +234,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             case PacketType::DETACH_REQUEST :
             {
                 if (!handleDetachRequest(clientFileDescriptor, receivedProtocol,
-                                     *serializer, dataPacket.value().data, currentTmsi))
+                                         *serializer, dataPacket.value().data, currentTmsi))
                 {
                     return;
                 }
@@ -243,7 +243,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             case PacketType::SMS_SEND :
             {
                 if (!handleSmsSendRequest(clientFileDescriptor, receivedProtocol,
-                                     *serializer, dataPacket.value().data))
+                                          *serializer, dataPacket.value().data))
                 {
                     return;
                 }
@@ -252,7 +252,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             case PacketType::SMS_DELIVERY_ACKNOWLEDGE :
             {
                 if (!handleSmsDeliveryAknowledge(clientFileDescriptor, receivedProtocol,
-                                            *serializer, dataPacket.value().data))
+                                                 *serializer, dataPacket.value().data))
                 {
                     return;
                 }
@@ -272,7 +272,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
 }
 
 bool ServerApp::handleRrcSearch(int clientFileDescriptor, Protocol protocol,
-                        const SerializerInterface& serializer, const BytesBuffer& data)
+                                const SerializerInterface& serializer, const BytesBuffer& data)
 {
     std::optional<NetworkMessage> message = serializer.deserialize(PacketType::RRC_SEARCH,
                                                                    data);
@@ -354,8 +354,8 @@ bool ServerApp::handleAttachRequest(int clientFileDescriptor, Protocol protocol,
 }
 
 bool ServerApp::handleLocationRequest(int clientFileDescriptor, Protocol protocol,
-                                    const SerializerInterface& serializer, const BytesBuffer& data,
-                                    std::optional<M_TMSI>& currentTmsi)
+                                      const SerializerInterface& serializer, const BytesBuffer& data,
+                                      std::optional<M_TMSI>& currentTmsi)
 {
     std::optional<NetworkMessage> message = serializer.deserialize(PacketType::LOCATION,
                                                                    data);
@@ -418,8 +418,8 @@ bool ServerApp::handleLocationRequest(int clientFileDescriptor, Protocol protoco
 }
 
 bool ServerApp::handleDetachRequest(int clientFileDescriptor, Protocol protocol,
-                                   const SerializerInterface& serializer,
-                                   const BytesBuffer& data, std::optional<M_TMSI>& currentTmsi)
+                                    const SerializerInterface& serializer,
+                                    const BytesBuffer& data, std::optional<M_TMSI>& currentTmsi)
 {
     std::optional<NetworkMessage> message = serializer.deserialize(PacketType::DETACH_REQUEST,
                                                                                 data);
@@ -454,8 +454,8 @@ bool ServerApp::handleDetachRequest(int clientFileDescriptor, Protocol protocol,
 }
 
 bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol,
-                                    const SerializerInterface& serializer,
-                                    const BytesBuffer& data)
+                                     const SerializerInterface& serializer,
+                                     const BytesBuffer& data)
 {
     std::optional<NetworkMessage> message = serializer.deserialize(PacketType::SMS_SEND,
                                                                     data);
@@ -478,11 +478,18 @@ bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol
         }
         else
         {
-            if (!sendErrorResponse(clientFileDescriptor, protocol, "The SMS was not delivered"))
+            if (!sendSmsSubmitReject(clientFileDescriptor, protocol, smsSendRequest.smsId,
+                                    "The SMS with ID = " + std::to_string(smsSendRequest.smsId)
+                                    + " was not delivered"))
             {
                 closeClientConnection(clientFileDescriptor);
                 return false;
             }
+            // if (!sendErrorResponse(clientFileDescriptor, protocol, "SMSC is full. The SMS was not delivered"))
+            // {
+            //     closeClientConnection(clientFileDescriptor);
+            //     return false;
+            // }
         }
     }
     else
@@ -654,7 +661,8 @@ bool ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, c
     return true;
 }
 
-bool ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId)
+bool ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol,
+                                    SmsId tempSmsId, SmsId globalSmsId)
 {
     SmsSubmitAccept smsSubmitAccept{tempSmsId, globalSmsId};
     auto serializer = SerializerFactory::createSerializer(protocol);
@@ -668,6 +676,25 @@ bool ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol,
     PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
                                               static_cast<uint8_t>(protocol),
                                               PacketType::SMS_SUBMIT_ACCEPT,
+                                              data);
+    return true;
+}
+
+bool ServerApp::sendSmsSubmitReject(int clientFileDescriptor, Protocol protocol,
+                                    SmsId tempSmsId, const std::string& reason)
+{
+    SmsSubmitReject smsSubmitReject{tempSmsId, reason};
+    auto serializer = SerializerFactory::createSerializer(protocol);
+    if (!serializer)
+    {
+        Logger::warning("Received unknown protocol header from client");
+        return false;
+    }
+
+    BytesBuffer data = serializer->serialize(smsSubmitReject);
+    PacketTransporter::sendDataPacketResponse(clientFileDescriptor,
+                                              static_cast<uint8_t>(protocol),
+                                              PacketType::SMS_SUBMIT_REJECT,
                                               data);
     return true;
 }
@@ -729,7 +756,8 @@ void ServerApp::process()
 
         if (countComponents > LocationPoint3D::COUNT_COMPONENTS_IN_POINT)
         {
-            Logger::warning("Validation error: expected 1 to " + std::to_string(LocationPoint3D::COUNT_COMPONENTS_IN_POINT) 
+            Logger::warning("Validation error: expected 1 to "
+                            + std::to_string(LocationPoint3D::COUNT_COMPONENTS_IN_POINT)
                             + " coordinates for location");
             continue;
         }
@@ -742,7 +770,8 @@ void ServerApp::process()
             auto component = convertFromString<CoordinatesType>(arg);
             if (!component.has_value())
             {
-                Logger::warning("Validation error: a location coordinate '" + arg + "' contains non-numeric characters");
+                Logger::warning("Validation error: a location coordinate '"
+                                + arg + "' contains non-numeric characters");
                 parseSuccess = false;
                 break;
             }

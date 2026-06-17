@@ -79,6 +79,12 @@ struct SmsSubmitAccept
     SmsId globalId;
 };
 
+struct SmsSubmitReject
+{
+    SmsId tempId;
+    std::string reason;
+};
+
 struct SmsIncomingMessage
 {
     M_TMSI receiverTmsi;
@@ -113,6 +119,7 @@ using NetworkMessage = std::variant<AttachRequest,
                                     ErrorResponse,
                                     SmsSendRequest,
                                     SmsSubmitAccept,
+                                    SmsSubmitReject,
                                     SmsIncomingMessage,
                                     SmsDeliveryAcknowledge,
                                     SmsStatusReport>;
