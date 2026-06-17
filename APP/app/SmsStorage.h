@@ -5,6 +5,7 @@
 #include <mutex>
 #include <optional>
 #include <algorithm>
+#include <set>
 
 #include "../../CORE/types.h"
 #include "../../CORE/network/NetworkMessages.h"
@@ -17,7 +18,7 @@ struct SentSmsRecord
     MSISDN receiverMsisdn;
     std::string text;
     SmsDeliveryStatus status;
-    size_t deliveredPartsCount = 0;
+    std::set<SmsId> deliveredGlobalIds;
     size_t totalPartsExpected = 0;
 };
 

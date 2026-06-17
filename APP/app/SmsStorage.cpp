@@ -2,6 +2,7 @@
 #include "../../COMMON/logging/Logger.h"
 
 #include <algorithm>
+#include <format>
 
 bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus newStatus)
 {
@@ -16,8 +17,12 @@ bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus new
 
                                                     for (const auto& id : record.globalIds.value())
                                                     {
-                                                        return id == globalId;
+                                                        if (id == globalId)
+                                                        {
+                                                            return true;
+                                                        }
                                                     }
+                                                    return false;
                                                 }
     );
 
@@ -28,20 +33,29 @@ bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus new
 
     if (newStatus == SmsDeliveryStatus::DELIVERED)
     {
-        ++smsRecord->deliveredPartsCount;
-        if (smsRecord->deliveredPartsCount >= smsRecord->totalPartsExpected)
+        smsRecord->deliveredGlobalIds.insert(globalId);
+        if (smsRecord->deliveredGlobalIds.size() >= smsRecord->totalPartsExpected)
         {
-            smsRecord->status = SmsDeliveryStatus::DELIVERED;
+            if (smsRecord->status < newStatus)
+            {
+                smsRecord->status = newStatus;
+            }
         }
     }
     else
     {
-        smsRecord->status = newStatus;
+        if (smsRecord->status < newStatus)
+        {
+            smsRecord->status = newStatus;
+        }
     }
 
     //smsRecord->status = newStatus;
-    Logger::debug("Updating status for SMS with global ID = " + std::to_string(globalId)
-                   + " to " + convertSmsDeliveryStatusToString(newStatus));
+    Logger::debug(std::format("Updating status for SMS with global ID = {} and temp ID = {}: "
+                              "{}/{} parts delivered. Current status: {}",
+                              globalId, smsRecord->tempId,
+                              smsRecord->deliveredGlobalIds.size(), smsRecord->totalPartsExpected,
+                              convertSmsDeliveryStatusToString(smsRecord->status)));
     return true;
 }
 
@@ -59,7 +73,11 @@ bool SmsStorage::updateSmsStatusByTempId(SmsId tempId, SmsDeliveryStatus newStat
     {
         return false;
     }
-    smsRecord->status = newStatus;
+
+    if (smsRecord->status < newStatus)
+    {
+        smsRecord->status = newStatus;
+    }
     return true;
 }
 
@@ -82,15 +100,18 @@ bool SmsStorage::linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts)
         smsRecord->totalPartsExpected = totalParts;
     }
 
-    if (smsRecord->globalIds.has_value())
-    {
-        smsRecord->globalIds.value().push_back(globalId);
-    }
-    else
+    if (!smsRecord->globalIds.has_value())
     {
         smsRecord->globalIds = std::vector<SmsId>{globalId};
     }
+    else
+    {
+        smsRecord->globalIds.value().push_back(globalId);
+    }
     //smsRecord->globalId = globalId;
-    smsRecord->status = SmsDeliveryStatus::IN_SMSC;
+    if (smsRecord->status < SmsDeliveryStatus::IN_SMSC)
+    {
+        smsRecord->status = SmsDeliveryStatus::IN_SMSC;
+    }
     return true;
 }
