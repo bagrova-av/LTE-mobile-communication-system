@@ -39,7 +39,7 @@ struct PendingEvents
 
 struct AcknowledgeResult
 {
-    bool found;
+    bool isFound;
     std::optional<M_TMSI> senderTmsi;
     bool senderOnline;
 };

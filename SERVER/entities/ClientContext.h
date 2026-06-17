@@ -8,24 +8,16 @@
 #include "../../COMMON/ThreadSafeQueue.h"
 #include "../../CORE/PacketTransporter.h"
 
-enum class UEState
-{
-    CONNECTED,
-    OFF
-};
-
 struct ClientContext
 {
     M_TMSI m_tmsi;
     int socketFileDescriptor;
-    UEState state;
     ThreadSafeQueue<NetworkDataPacket> messageBuffer;
     size_t currentBufferBytesSize;
 
-    ClientContext(M_TMSI m_tmsi, int socketFileDescriptor, UEState state) :
+    ClientContext(M_TMSI m_tmsi, int socketFileDescriptor) :
         m_tmsi(m_tmsi),
         socketFileDescriptor(socketFileDescriptor),
-        state(state),
         currentBufferBytesSize(0)
     {};
 };

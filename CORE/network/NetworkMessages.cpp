@@ -12,6 +12,10 @@ std::string convertSmsDeliveryStatusToString(SmsDeliveryStatus status)
         {
             return "SENT_TO_SERVER";
         }
+        case SmsDeliveryStatus::IN_SMSC :
+        {
+            return "IN_SMSC";
+        }
         case SmsDeliveryStatus::DELIVERED :
         {
             return "DELIVERED";

@@ -182,6 +182,7 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
     tmsiLookupImsi.emplace(m_tmsi,imsi);
 
     // Checking messages for this client in SMSC
+    smsCenter->processExpiredMessages();
     auto events = smsCenter->popEventsForSubscriber(subscriberRecord->identityData.msisdn);
     auto currentSerializer = SerializerFactory::createSerializer(protocol);
     for (const auto& sms : events.incomingMessages)
@@ -384,7 +385,7 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
     }
 
     AcknowledgeResult result = smsCenter->processDeliveryAcknowledge(message.smsId, isSenderOnline);
-    if (!result.found || !isSenderOnline)
+    if (!result.isFound || !isSenderOnline)
     {
         return;
     }

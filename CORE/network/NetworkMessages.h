@@ -59,6 +59,7 @@ enum class SmsDeliveryStatus : uint8_t
 {
     SENDING,
     SENT_TO_SERVER,
+    IN_SMSC,
     DELIVERED,
     FAILED
 };

@@ -44,18 +44,17 @@ bool SmsStorage::linkSmsIds(SmsId tempId, SmsId globalId)
 {
     std::lock_guard<std::mutex> lock(smsMutex);
 
-    auto it = std::find_if(sentSmsRecords.begin(), sentSmsRecords.end(),
-                            [tempId](const SentSmsRecord& smsRecord)
-                            {
-                                return smsRecord.tempId == tempId;
-                            }
+    SentSmsRecord* smsRecord = findSentSmsRecord([tempId](const auto& record)
+                                                {
+                                                    return record.tempId == tempId;
+                                                }
     );
 
-    if (it == sentSmsRecords.end())
+    if (!smsRecord)
     {
         return false;
     }
-    it->globalId = globalId;
-    it->status = SmsDeliveryStatus::SENT_TO_SERVER;
+    smsRecord->globalId = globalId;
+    smsRecord->status = SmsDeliveryStatus::IN_SMSC;
     return true;
 }

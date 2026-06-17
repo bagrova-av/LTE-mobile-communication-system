@@ -12,11 +12,8 @@ bool BaseStation::registerClient(M_TMSI m_tmsi, int clientFileDescriptor)
     {
         return false;
     }
-    connectedClients.emplace(m_tmsi, std::make_unique<ClientContext>(m_tmsi, 
-                                                                    clientFileDescriptor,
-                                                                    UEState::CONNECTED
-                                                                )
-    );
+    connectedClients.emplace(m_tmsi,
+                            std::make_unique<ClientContext>(m_tmsi, clientFileDescriptor));
     return true;
 }
 

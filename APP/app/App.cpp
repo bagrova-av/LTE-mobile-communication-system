@@ -310,7 +310,9 @@ void App::handleSendSmsTask(uint8_t protocolHeader,
     {
         Logger::error("Failed to send SMS to the server");
         smsStorage.updateSmsStatusByTempId(smsData.tempId, SmsDeliveryStatus::FAILED);
+        return;
     }
+    smsStorage.updateSmsStatusByTempId(smsData.tempId, SmsDeliveryStatus::SENT_TO_SERVER);
 }
 
 void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
