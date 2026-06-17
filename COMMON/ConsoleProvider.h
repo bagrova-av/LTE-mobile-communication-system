@@ -36,24 +36,4 @@ public:
     static void printNotification(std::string_view message, std::string_view prefix);
 };
 
-// inline void ConsoleProvider::safePrint(std::string_view message, std::string_view prefix,
-//                                        bool isError)
-// {
-//     std::lock_guard<std::mutex> lock(consoleMutex);
-//     tcflush(STDIN_FILENO, TCIFLUSH); // Clearing the OS input buffer
-
-//     std::cout << "\r" << std::string(80, ' ') << "\r";
-
-//     if (isError)
-//     {
-//         std::cerr << message << '\n';
-//     }
-//     else
-//     {
-//         std::cout << prefix << message << '\n';
-//     }
-
-//     std::cout << currentInvitation << std::flush;
-// }
-
 #endif

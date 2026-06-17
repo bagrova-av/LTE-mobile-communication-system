@@ -55,24 +55,6 @@ bool CommandSentSms::execute(const std::vector<std::string>& args)
         {
             idsString = idsString.substr(0, 12) + "...";
         }
-
-        //std::cout << std::left << std::setw(10);
-        // if (sms.globalId.has_value())
-        // {
-        //     std::cout << sms.globalId.value();
-        // }
-        // if (!sms.globalIds)
-        // {
-        //     std::cout << "-";
-        // }
-        // for (size_t i = 0; i < sms.globalIds.value().size(); ++i)
-        // {
-        //     std::cout << sms.globalIds.value()[i];
-        //     if (i < sms.globalIds.value().size() - 1)
-        //     {
-        //         std::cout << ", ";
-        //     }
-        // }
         
         std::cout << std::left << std::setw(18) << idsString  << " | "
                   << std::setw(MAX_LENGTH_OF_IMSI_IMEI_MSISDN) << sms.receiverMsisdn << " | "

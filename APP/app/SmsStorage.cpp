@@ -50,7 +50,6 @@ bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus new
         }
     }
 
-    //smsRecord->status = newStatus;
     Logger::debug(std::format("Updating status for SMS with global ID = {} and temp ID = {}: "
                               "{}/{} parts delivered. Current status: {}",
                               globalId, smsRecord->tempId,
@@ -108,7 +107,7 @@ bool SmsStorage::linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts)
     {
         smsRecord->globalIds.value().push_back(globalId);
     }
-    //smsRecord->globalId = globalId;
+
     if (smsRecord->status < SmsDeliveryStatus::IN_SMSC)
     {
         smsRecord->status = SmsDeliveryStatus::IN_SMSC;

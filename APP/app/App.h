@@ -24,7 +24,6 @@ private:
     mutable std::mutex stateMutex;
     ClientSocket clientSocket;
     ThreadSafeQueue<NetworkTask> networkTasks;
-    ThreadSafeQueue<std::string> responsesQueue;
     std::thread networkThread;
     SmsStorage smsStorage;
     std::atomic<SmsId> nextLocalSmsId;
@@ -67,8 +66,6 @@ public:
     Protocol getProtocol() const;
     std::optional<AddressBookEntry> getAddressBookEntryByShortcut(size_t shortcut) const;
     const std::map<size_t, AddressBookEntry>& getAddressBook() const;
-
-    void notifyUser(const std::string& message);
 
     void addSentSmsRecord(const SentSmsRecord& smsRecord);
     void addReceivedSmsRecord(const ReceivedSmsRecord& smsRecord);

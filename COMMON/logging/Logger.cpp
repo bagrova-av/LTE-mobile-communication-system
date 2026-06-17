@@ -30,7 +30,6 @@ void Logger::log(LogLevel level, std::string_view message)
                                             std::cerr << message << '\n';
                                         }
         );
-        //std::cerr << message << '\n';
     }
 }
 

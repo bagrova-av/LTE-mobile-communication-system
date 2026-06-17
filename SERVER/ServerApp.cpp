@@ -1,7 +1,6 @@
 #include "ServerApp.h"
 #include "../COMMON/utils.h"
 #include "../COMMON/parserUtils.h"
-//#include "../CORE/network/SerializerFactory.h"
 #include "../CORE/PacketTransporter.h"
 #include "../COMMON/ConsoleProvider.h"
 
@@ -107,7 +106,6 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
                     if (idleDuration >= epcConfig.simtelTtlSec)
                     {
                         Logger::info("SimTel TTL reached. Shutting down server...");
-                        //isRunning = false;
                         isNetworkActive = false;
                         break;
                     }
@@ -115,7 +113,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
                 errno = 0;
                 continue;
             }
-            if (!isNetworkActive)//if (!isRunning)
+            if (!isNetworkActive)
             {
                 Logger::info("Network thread detected shutdown signal");
                 break;
@@ -484,20 +482,6 @@ bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol
     {
         const SmsSendRequest& smsSendRequest = std::get<SmsSendRequest>(message.value());
 
-        // auto globalSmsIds = mme->handleSmsRequest(smsSendRequest);
-        // if (globalSmsIds.has_value())
-        // {
-        //     size_t totalParts = globalSmsIds.value().size();
-        //     for (const auto& globalSmsId : globalSmsIds.value())
-        //     {
-        //         if (!sendSmsSubmitAccept(clientFileDescriptor, protocol,
-        //                                 smsSendRequest.smsId, globalSmsId, totalParts))
-        //         {
-        //             closeClientConnection(clientFileDescriptor);
-        //             return false;
-        //         }
-        //     }
-        // }
         auto result = mme->handleSmsRequest(smsSendRequest);
         if (std::holds_alternative<std::vector<SmsId>>(result))
         {
@@ -522,11 +506,6 @@ bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol
                 closeClientConnection(clientFileDescriptor);
                 return false;
             }
-            // if (!sendErrorResponse(clientFileDescriptor, protocol, "SMSC is full. The SMS was not delivered"))
-            // {
-            //     closeClientConnection(clientFileDescriptor);
-            //     return false;
-            // }
         }
     }
     else
@@ -745,7 +724,6 @@ void ServerApp::process()
         CoordinatesType distance = location.distanceTo(targetLocation);
         Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
                      + " is " + std::to_string(distance));
-        //std::cout << "Target point: " << targetLocation << " => Distance: " << distance << '\n';
         ConsoleProvider::executeSafePrint([&]()
                                          {
                                             std::cout << "Target point: " << targetLocation

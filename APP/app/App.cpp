@@ -40,16 +40,6 @@ std::optional<AddressBookEntry> App::getAddressBookEntryByShortcut(size_t shortc
     return it->second;
 }
 
-void App::notifyUser(const std::string& message)
-{
-    static std::mutex consoleMutex;
-    std::lock_guard<std::mutex> lock(consoleMutex);
-
-    std::cout << '\r' << std::string(80, ' ') << '\r'
-              << "[Server response] " << message << '\n'
-              << '\n' << "Please, enter the command: " << std::flush;
-}
-
 void App::pushTaskToQueue(TaskType type, Protocol protocol, TaskData data)
 {
     if(!networkTasks.push(NetworkTask{type, protocol, std::move(data)}))
@@ -147,8 +137,6 @@ void App::handleAttachTask(uint8_t protocolHeader,
                             success = true;
                             std::lock_guard<std::mutex> lock(stateMutex);
                             state.m_tmsi = std::get<AttachAccept>(messageAccept.value()).m_tmsi;
-                            // responsesQueue.push("Attach successful. Your M_TMSI is "
-                            //                     + std::to_string(state.m_tmsi.value()));
                             ConsoleProvider::printNotification("Attach successful. Your M_TMSI is "
                                                  + std::to_string(state.m_tmsi.value()), "[Server response] ");
                         }
@@ -186,7 +174,6 @@ void App::handleAttachTask(uint8_t protocolHeader,
         std::lock_guard<std::mutex> lock(stateMutex);
         state.isActive = false;
         state.m_tmsi = std::nullopt;
-        //responsesQueue.push("Attach failed: " + errorMessage);
         ConsoleProvider::printNotification("Attach failed: " + errorMessage, "[Server response] ");
     }
 }
@@ -218,7 +205,6 @@ void App::handleDetachTask(uint8_t protocolHeader, const SerializerInterface& se
     std::lock_guard<std::mutex> lock(stateMutex);
     state.isActive = false;
     state.m_tmsi = std::nullopt;
-    //responsesQueue.push("Disconnected from network");
     ConsoleProvider::printNotification("Disconnected from network", "[Server response] ");
 }
 
@@ -240,7 +226,6 @@ void App::handleLocationTask(uint8_t protocolHeader,
                                                   serializedLocation.value()))
     {
         Logger::error("CommandMove: failed to send data to the server");
-        //responsesQueue.push("Network error: failed to send location");
         ConsoleProvider::printNotification("Network error: failed to send location", "[Server response] ");
         return;
     }
@@ -250,7 +235,6 @@ void App::handleLocationTask(uint8_t protocolHeader,
     if (!distanceResponse.has_value())
     {
         Logger::error("Server connection lost while waiting for distance");
-        //responsesQueue.push("Error: server connection lost");
         ConsoleProvider::printNotification("Error: server connection lost", "[Server response] ");
 
         clientSocket.disconnect();
@@ -268,7 +252,6 @@ void App::handleLocationTask(uint8_t protocolHeader,
             CoordinatesType distance = std::get<DistanceResponse>(message.value()).distance;
             std::string response = "Distance from " + convertLocationToString(location)
                                     + " to the server: " + std::to_string(distance);
-            //responsesQueue.push(std::move(response));
             ConsoleProvider::printNotification(std::move(response), "[Server response] ");
             Logger::info("Received distance from the server. The distance from the client to the server is " +
                         std::to_string(distance));
@@ -276,7 +259,6 @@ void App::handleLocationTask(uint8_t protocolHeader,
         else
         {
             Logger::error("Failed to deserialize distance response");
-            //responsesQueue.push("Received deformed distance data from server");
             ConsoleProvider::printNotification("Received deformed distance data from server", "[Server response] ");
         }
     }
@@ -287,13 +269,11 @@ void App::handleLocationTask(uint8_t protocolHeader,
         if (message.has_value())
         {
             std::string errorText = std::get<ErrorResponse>(message.value()).message;
-            //responsesQueue.push("Server error: " + errorText);
             ConsoleProvider::printNotification("Server error: " + errorText, "[Server response] ");
             Logger::warning("Server returned error: " + errorText);
         }
         else
         {
-            //responsesQueue.push("Server returned error");
             ConsoleProvider::printNotification("Error: server connection lost", "[Server response] ");
             Logger::warning("Server returned error");
         }
@@ -301,7 +281,6 @@ void App::handleLocationTask(uint8_t protocolHeader,
     else
     {
         Logger::warning("Received unexpected packet type during location update");
-        //responsesQueue.push("Error: unexpected response from server");
         ConsoleProvider::printNotification("Error: unexpected response from server", "[Server response] ");
     }
 }
@@ -374,8 +353,6 @@ void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
             else
             {
                 Logger::error("Failed to deserialize SMS_SUBMIT_ACCEPT packet");
-                //responsesQueue.push("Received deformed network data packet");
-                //notifyUser("Received deformed network data packet");
                 ConsoleProvider::printNotification("Received deformed network data packet", "[Server response] ");
             }
             break;
@@ -389,15 +366,11 @@ void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
             {
                 const auto& submitReject = std::get<SmsSubmitReject>(message.value());
                 smsStorage.updateSmsStatusByTempId(submitReject.tempId, SmsDeliveryStatus::FAILED);
-                //responsesQueue.push(submitReject.reason);
-                //notifyUser(submitReject.reason);
                 ConsoleProvider::printNotification(submitReject.reason, "[Server response] ");
             }
             else
             {
                 Logger::error("Failed to deserialize SMS_SUBMIT_REJECT packet");
-                //responsesQueue.push("Received deformed network data packet");
-                //notifyUser("Received deformed network data packet");
                 ConsoleProvider::printNotification("Received deformed network data packet", "[Server response] ");
             }
             break;
@@ -412,8 +385,6 @@ void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
                 const auto& sms = std::get<SmsIncomingMessage>(message.value());
                 
                 addReceivedSmsRecord(ReceivedSmsRecord{sms.senderMsisdn, sms.text});
-                //responsesQueue.push("New SMS from " + sms.senderMsisdn + ":\n" + sms.text);
-                //notifyUser("New SMS from " + sms.senderMsisdn + ":\n" + sms.text);
                 ConsoleProvider::printNotification("New SMS from " + sms.senderMsisdn + ":\n" + sms.text,
                                            "[Server response] ");
 
@@ -432,8 +403,6 @@ void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
             else
             {
                 Logger::error("Failed to deserialize SMS_RECEIVE packet");
-                //responsesQueue.push("Received deformed network data packet");
-                //notifyUser("Received deformed network data packet");
                 ConsoleProvider::printNotification("Received deformed network data packet", "[Server response] ");
             }
             break;
@@ -447,10 +416,6 @@ void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
             {
                 const auto& report = std::get<SmsStatusReport>(message.value());
                 smsStorage.updateSmsStatusByGlobalId(report.smsId, report.status);
-                // responsesQueue.push("Delivery SMS with ID " + std::to_string(report.smsId)
-                //                     + " is " + convertSmsDeliveryStatusToString(report.status));
-                // notifyUser("SMS with ID " + std::to_string(report.smsId)
-                //            + " is " + convertSmsDeliveryStatusToString(report.status));
                 ConsoleProvider::printNotification("SMS with ID " + std::to_string(report.smsId)
                                             + " is " + convertSmsDeliveryStatusToString(report.status),
                                             "[Server response] ");
@@ -459,8 +424,6 @@ void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
             else
             {
                 Logger::error("Failed to deserialize SMS_STATUS packet");
-                //responsesQueue.push("Received deformed network data packet");
-                //notifyUser("Received deformed network data packet");
                 ConsoleProvider::printNotification("Received deformed network data packet", "[Server response] ");
             }
             break;
@@ -472,16 +435,12 @@ void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
                                                          dataPacket.data);
             if (message.has_value())
             {
-                //responsesQueue.push(std::get<ErrorResponse>(message.value()).message);
-                //notifyUser(std::get<ErrorResponse>(message.value()).message);
                 ConsoleProvider::printNotification(std::get<ErrorResponse>(message.value()).message, "[Server response] ");
                 break;
             }
             else
             {
                 Logger::error("Failed to deserialize ERROR_MESSAGE packet");
-                //responsesQueue.push("Received deformed network data packet");
-                //notifyUser("Received deformed network data packet");
                 ConsoleProvider::printNotification("Received deformed network data packet", "[Server response] ");
             }
             break;
@@ -580,21 +539,4 @@ void App::networkThreadWorker()
         }
     }
     Logger::info("Client network thread stopped");
-}
-
-bool App::processResponses()
-{
-    bool queueHasResponses = false;
-
-    while (true)
-    {
-        auto response = responsesQueue.tryPop();
-        if (!response.has_value())
-        {
-            break;
-        }
-        std::cout << '\n' << "[Server response] " << response.value() << '\n';
-        queueHasResponses = true;
-    }
-    return queueHasResponses;
 }
