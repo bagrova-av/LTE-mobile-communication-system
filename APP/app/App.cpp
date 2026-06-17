@@ -313,7 +313,7 @@ void App::handleSendSmsTask(uint8_t protocolHeader,
     }
 }
 
-void App::handleIncomingServerMessage(const ReceivedDataPacket& dataPacket)
+void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
 {
     std::optional<M_TMSI> m_tmsi;
     {
@@ -441,7 +441,7 @@ void App::networkThreadWorker()
 
             if (clientSocket.isOpen())
             {
-                std::optional<ReceivedDataPacket> incomingPacket;
+                std::optional<NetworkDataPacket> incomingPacket;
                 while ( (incomingPacket = PacketTransporter::receiveDataPacketResponse(clientSocket)).has_value() )
                 {
                     handleIncomingServerMessage(incomingPacket.value());

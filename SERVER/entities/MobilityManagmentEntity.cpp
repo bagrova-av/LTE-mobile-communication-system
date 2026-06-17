@@ -105,7 +105,7 @@ void MobilityManagmentEntity::cleanupExpiredMessages()
             if (baseStation)
             {
                 SmsStatusReport smsStatusReport{sms.senderTmsi, sms.smsId, status};
-                BufferedPacket packetForBuffer{static_cast<uint8_t>(data.protocol),
+                NetworkDataPacket packetForBuffer{static_cast<uint8_t>(data.protocol),
                                                PacketType::SMS_STATUS,
                                               currentSerializer->serialize(smsStatusReport)};
                 baseStation->pushMessageToBuffer(sms.senderTmsi, packetForBuffer);
@@ -187,7 +187,7 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
     for (const auto& sms : events.incomingMessages)
     {
         SmsIncomingMessage smsIncomingMessage{m_tmsi, sms.senderMsisdn, sms.smsId, sms.text};
-        BufferedPacket packetForBuffer{static_cast<uint8_t>(protocol),
+        NetworkDataPacket packetForBuffer{static_cast<uint8_t>(protocol),
                                        PacketType::SMS_RECEIVE,
                                        currentSerializer->serialize(smsIncomingMessage)};
         targetBaseStation->pushMessageToBuffer(m_tmsi, packetForBuffer);
@@ -205,7 +205,7 @@ std::optional<M_TMSI> MobilityManagmentEntity::attachClient(const IMEI& imei, co
             status = SmsDeliveryStatus::FAILED;
         }
         SmsStatusReport report{m_tmsi, sms.smsId, status};
-        BufferedPacket packetForBuffer{static_cast<uint8_t>(protocol),
+        NetworkDataPacket packetForBuffer{static_cast<uint8_t>(protocol),
                                       PacketType::SMS_STATUS,
                                        currentSerializer->serialize(report)};
         targetBaseStation->pushMessageToBuffer(m_tmsi, packetForBuffer);
@@ -355,7 +355,7 @@ std::optional<std::vector<SmsId>> MobilityManagmentEntity::handleSmsRequest(cons
             return smsIds;
         }
 
-        BufferedPacket packetForBuffer{static_cast<uint8_t>(receiverProtocol),
+        NetworkDataPacket packetForBuffer{static_cast<uint8_t>(receiverProtocol),
                                        PacketType::SMS_RECEIVE,
                                        receiverSerializer->serialize(incomingMessage)};
         baseStation->pushMessageToBuffer(routingInfo.value().first, packetForBuffer);
@@ -398,7 +398,7 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
         auto senderSerializer = SerializerFactory::createSerializer(senderProtocol);
 
         SmsStatusReport smsStatusReport{smsRecord.value().senderTmsi, message.smsId, message.status};
-        BufferedPacket packetForBuffer{static_cast<uint8_t>(senderProtocol),
+        NetworkDataPacket packetForBuffer{static_cast<uint8_t>(senderProtocol),
                                         PacketType::SMS_STATUS,
                                         senderSerializer->serialize(smsStatusReport)};
         if (baseStation->pushMessageToBuffer(smsRecord.value().senderTmsi, packetForBuffer))

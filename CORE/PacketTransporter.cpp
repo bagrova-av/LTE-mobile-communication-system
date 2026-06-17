@@ -31,7 +31,7 @@ bool PacketTransporter::sendDataPacketRequest(const ClientSocket& clientSocket,
     return clientSocket.sendAllData(data);
 }
 
-std::optional<ReceivedDataPacket> PacketTransporter::receiveDataPacketResponse(const ClientSocket& clientSocket)
+std::optional<NetworkDataPacket> PacketTransporter::receiveDataPacketResponse(const ClientSocket& clientSocket)
 {
     std::optional<BytesBuffer> header = clientSocket.receiveAllData(1);
     if (!header.has_value())
@@ -65,10 +65,10 @@ std::optional<ReceivedDataPacket> PacketTransporter::receiveDataPacketResponse(c
         return std::nullopt;
     }
 
-    return ReceivedDataPacket{header.value()[0], static_cast<PacketType>(packetType.value()[0]), data.value()};
+    return NetworkDataPacket{header.value()[0], static_cast<PacketType>(packetType.value()[0]), data.value()};
 }
 
-std::optional<ReceivedDataPacket> PacketTransporter::receiveDataPacketRequest(int clientFileDescriptor)
+std::optional<NetworkDataPacket> PacketTransporter::receiveDataPacketRequest(int clientFileDescriptor)
 {
     if (clientFileDescriptor == -1)
     {
@@ -110,7 +110,7 @@ std::optional<ReceivedDataPacket> PacketTransporter::receiveDataPacketRequest(in
         return std::nullopt;
     }
 
-    return ReceivedDataPacket{header.value()[0], static_cast<PacketType>(packetType.value()[0]), data.value()};
+    return NetworkDataPacket{header.value()[0], static_cast<PacketType>(packetType.value()[0]), data.value()};
 }
 
 bool PacketTransporter::sendDataPacketResponse(int clientFileDescriptor,

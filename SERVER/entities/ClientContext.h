@@ -14,19 +14,12 @@ enum class UEState
     OFF
 };
 
-struct BufferedPacket
-{
-    uint8_t protocolHeader;
-    PacketType packetType;
-    BytesBuffer data;
-};
-
 struct ClientContext
 {
     M_TMSI m_tmsi;
     int socketFileDescriptor;
     UEState state;
-    ThreadSafeQueue<BufferedPacket> messageBuffer;
+    ThreadSafeQueue<NetworkDataPacket> messageBuffer;
     size_t currentBufferBytesSize;
 
     ClientContext(M_TMSI m_tmsi, int socketFileDescriptor, UEState state) :

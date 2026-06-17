@@ -175,7 +175,7 @@ void ServerApp::processSingleClient(int clientFileDescriptor)
             return;
         }
 
-        std::optional<ReceivedDataPacket> dataPacket = PacketTransporter::receiveDataPacketRequest(clientFileDescriptor);
+        std::optional<NetworkDataPacket> dataPacket = PacketTransporter::receiveDataPacketRequest(clientFileDescriptor);
         if (!dataPacket.has_value())
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK) // recv() timed out
@@ -534,7 +534,7 @@ void ServerApp::sendBufferedMessages(int clientFileDescriptor, const std::option
         return;
     }
 
-    std::optional<BufferedPacket> pendingPacket;
+    std::optional<NetworkDataPacket> pendingPacket;
     while ( (pendingPacket = baseStation->popMessageFromBuffer(currentTmsi.value())).has_value() )
     {
         PacketTransporter::sendDataPacketResponse(clientFileDescriptor,

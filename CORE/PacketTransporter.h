@@ -25,7 +25,7 @@ enum class PacketType : uint8_t
     UNKNOWN
 };
 
-struct ReceivedDataPacket
+struct NetworkDataPacket
 {
     uint8_t protocolHeader;
     PacketType packetType;
@@ -39,9 +39,9 @@ public:
                                       uint8_t protocolHeader,
                                       PacketType packetType,
                                       const BytesBuffer& data);
-    static std::optional<ReceivedDataPacket> receiveDataPacketResponse(const ClientSocket& clientSocket);
+    static std::optional<NetworkDataPacket> receiveDataPacketResponse(const ClientSocket& clientSocket);
 
-    static std::optional<ReceivedDataPacket> receiveDataPacketRequest(int clientFileDescriptor);
+    static std::optional<NetworkDataPacket> receiveDataPacketRequest(int clientFileDescriptor);
     static bool sendDataPacketResponse(int clientFileDescriptor,
                                        uint8_t protocolHeader,
                                        PacketType packetType,

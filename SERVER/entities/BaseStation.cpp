@@ -46,7 +46,7 @@ float BaseStation::calculateSignalStrength(const LocationPoint3D& clientLocation
     return 1.0f - (distance / config.coverageRadius);
 }
 
-bool BaseStation::pushMessageToBuffer(M_TMSI m_tmsi, const BufferedPacket& data)
+bool BaseStation::pushMessageToBuffer(M_TMSI m_tmsi, const NetworkDataPacket& data)
 {
     std::lock_guard<std::mutex> lock(bsMutex);
 
@@ -65,7 +65,7 @@ bool BaseStation::pushMessageToBuffer(M_TMSI m_tmsi, const BufferedPacket& data)
     return false;
 }
 
-std::optional<BufferedPacket> BaseStation::popMessageFromBuffer(M_TMSI m_tmsi)
+std::optional<NetworkDataPacket> BaseStation::popMessageFromBuffer(M_TMSI m_tmsi)
 {
     std::lock_guard<std::mutex> lock(bsMutex);
 
@@ -85,7 +85,7 @@ std::optional<BufferedPacket> BaseStation::popMessageFromBuffer(M_TMSI m_tmsi)
 }
 
 bool BaseStation::hasEnoughSpaceInBufferWithoutMutex(ClientContext* clientContext,
-                                                    const BufferedPacket& data) const
+                                                    const NetworkDataPacket& data) const
 {
     if (!clientContext)
     {
@@ -95,7 +95,7 @@ bool BaseStation::hasEnoughSpaceInBufferWithoutMutex(ClientContext* clientContex
            <= config.bufferBytesSizePerConnection;
 }
 
-size_t BaseStation::getBufferPacketSize(const BufferedPacket& packet) const
+size_t BaseStation::getBufferPacketSize(const NetworkDataPacket& packet) const
 {
     return sizeof(packet.packetType) + packet.data.size();
 }

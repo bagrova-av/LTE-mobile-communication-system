@@ -41,7 +41,7 @@ private:
     void handleSendSmsTask(uint8_t protocolHeader,
                             const SerializerInterface& serializer,
                             const NetworkTask& networkTask);
-    void handleIncomingServerMessage(const ReceivedDataPacket& dataPacket);
+    void handleIncomingServerMessage(const NetworkDataPacket& dataPacket);
     void pushTaskToQueue(TaskType type, Protocol protocol, TaskData data);
 
 public:
