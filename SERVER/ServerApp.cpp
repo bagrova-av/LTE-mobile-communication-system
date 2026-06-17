@@ -3,6 +3,7 @@
 #include "../COMMON/parserUtils.h"
 #include "../CORE/PacketTransporter.h"
 #include "../COMMON/ConsoleProvider.h"
+#include "../COMMON/constants.h"
 
 #include <algorithm>
 #include <iostream>
@@ -15,6 +16,7 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location, const EpcCo
     epcConfig(epcConfig),
     isRunning(true),
     activeClientsCount(0),
+    maxActiveClientConnnections(MAX_ACTIVE_CLIENT_CONNECTIONS),
     lastClientDisconnectedTime(std::chrono::system_clock::now()),
     serverSocket()
 {
@@ -125,10 +127,10 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
                      + ") connected");
         ++activeClientsCount;
 
-        if (activeClientsFutures.size() > MAX_ACTIVE_CLIENT_CONNECTIONS)
+        if (activeClientsFutures.size() > maxActiveClientConnnections)
         {
             Logger::warning("Server overloaded: maximum number of active client connections ( "
-                + std::to_string(MAX_ACTIVE_CLIENT_CONNECTIONS) + " ) has been reached. "
+                + std::to_string(maxActiveClientConnnections) + " ) has been reached. "
                 + "Closing new connection");
             ServerSocket::closeClientConnection(clientFileDescriptor);
             --activeClientsCount;

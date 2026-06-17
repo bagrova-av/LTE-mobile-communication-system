@@ -17,7 +17,7 @@ class ServerApp
 {
 private:
     EpcConfig epcConfig;
-    size_t MAX_ACTIVE_CLIENT_CONNECTIONS = 100;
+    size_t maxActiveClientConnnections;
     const Port listeningPort;
     const LocationPoint3D location;
     std::atomic<bool> isRunning;
