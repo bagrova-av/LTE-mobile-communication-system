@@ -24,7 +24,6 @@ private:
     mutable std::mutex stateMutex;
     ClientSocket clientSocket;
     ThreadSafeQueue<NetworkTask> networkTasks;
-    ThreadSafeQueue<std::string> responsesQueue;
     std::thread networkThread;
     SmsStorage smsStorage;
     std::atomic<SmsId> nextLocalSmsId;
@@ -41,7 +40,7 @@ private:
     void handleSendSmsTask(uint8_t protocolHeader,
                             const SerializerInterface& serializer,
                             const NetworkTask& networkTask);
-    void handleIncomingServerMessage(const ReceivedDataPacket& dataPacket);
+    void handleIncomingServerMessage(const NetworkDataPacket& dataPacket);
     void pushTaskToQueue(TaskType type, Protocol protocol, TaskData data);
 
 public:
@@ -72,7 +71,7 @@ public:
     void addReceivedSmsRecord(const ReceivedSmsRecord& smsRecord);
     std::vector<ReceivedSmsRecord> getReceivedSmsHistory() const;
     std::vector<SentSmsRecord> getSentSmsHistory() const;
-    bool linkSmsIds(SmsId tempId, SmsId globalId);
+    bool linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts);
 
     void sendLocationToServerAsync(const LocationPoint3D& location);
     void sendAttachTaskToServerAsync();
@@ -183,9 +182,9 @@ inline std::vector<SentSmsRecord> App::getSentSmsHistory() const
     return smsStorage.getSentSmsCopy();
 }
 
-inline bool App::linkSmsIds(SmsId tempId, SmsId globalId)
+inline bool App::linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts)
 {
-    return smsStorage.linkSmsIds(tempId, globalId);
+    return smsStorage.linkSmsIds(tempId, globalId, totalParts);
 }
 
 #endif

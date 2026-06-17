@@ -15,6 +15,7 @@ enum class PacketType : uint8_t
     ATTACH_REJECT,
     SMS_SEND,
     SMS_SUBMIT_ACCEPT,
+    SMS_SUBMIT_REJECT,
     SMS_RECEIVE,
     SMS_DELIVERY_ACKNOWLEDGE,
     SMS_STATUS,
@@ -25,7 +26,7 @@ enum class PacketType : uint8_t
     UNKNOWN
 };
 
-struct ReceivedDataPacket
+struct NetworkDataPacket
 {
     uint8_t protocolHeader;
     PacketType packetType;
@@ -39,9 +40,9 @@ public:
                                       uint8_t protocolHeader,
                                       PacketType packetType,
                                       const BytesBuffer& data);
-    static std::optional<ReceivedDataPacket> receiveDataPacketResponse(const ClientSocket& clientSocket);
+    static std::optional<NetworkDataPacket> receiveDataPacketResponse(const ClientSocket& clientSocket);
 
-    static std::optional<ReceivedDataPacket> receiveDataPacketRequest(int clientFileDescriptor);
+    static std::optional<NetworkDataPacket> receiveDataPacketRequest(int clientFileDescriptor);
     static bool sendDataPacketResponse(int clientFileDescriptor,
                                        uint8_t protocolHeader,
                                        PacketType packetType,

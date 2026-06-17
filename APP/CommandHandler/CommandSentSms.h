@@ -10,6 +10,8 @@ class CommandSentSms : public CommandInterface
 private:
     App& app;
 
+    std::string covertIdsToString(const std::optional<std::vector<SmsId>>& ids);
+
 public:
     CommandSentSms(App& app) :
         app(app) {};

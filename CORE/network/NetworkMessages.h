@@ -59,6 +59,7 @@ enum class SmsDeliveryStatus : uint8_t
 {
     SENDING,
     SENT_TO_SERVER,
+    IN_SMSC,
     DELIVERED,
     FAILED
 };
@@ -76,6 +77,13 @@ struct SmsSubmitAccept
 {
     SmsId tempId;
     SmsId globalId;
+    uint8_t totalParts;
+};
+
+struct SmsSubmitReject
+{
+    SmsId tempId;
+    std::string reason;
 };
 
 struct SmsIncomingMessage
@@ -112,6 +120,7 @@ using NetworkMessage = std::variant<AttachRequest,
                                     ErrorResponse,
                                     SmsSendRequest,
                                     SmsSubmitAccept,
+                                    SmsSubmitReject,
                                     SmsIncomingMessage,
                                     SmsDeliveryAcknowledge,
                                     SmsStatusReport>;

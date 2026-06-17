@@ -16,6 +16,7 @@
 #include "../COMMON/logging/FileLogger.h"
 #include "../COMMON/logging/Logger.h"
 #include "../COMMON/utils.h"
+#include "../COMMON/ConsoleProvider.h"
 
 static ServerApp* globalServerAppPtr = nullptr;
 
@@ -74,6 +75,8 @@ int main(int argc, char** argv)
 {
     Logger::setMinimumLevel(LogLevel::DEBUG);
     initLogger(argv[0], "TelecomAppServer_PID");
+
+    ConsoleProvider::setInvitation("Enter target coordinates (x [y] [z]) or 'exit': ");
 
     auto resultConfiguration = loadConfiguration(argc, argv);
     if (!resultConfiguration.has_value())

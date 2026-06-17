@@ -10,19 +10,22 @@
 #include "../../CORE/network/NetworkMessages.h"
 #include "../../CORE/network/SerializerInterface.h"
 
-struct clientsData
+struct ClientData
 {
     IMEI imei;
     MSISDN msisdn;
     BaseStationId currentBaseSationId;
+    Protocol protocol;
 };
+
+using SmsResult = std::variant<std::vector<SmsId>, std::string>;
 
 class MobilityManagmentEntity
 {
 private:
     MmeConfig config;
     std::vector<std::unique_ptr<BaseStation>> baseStations;
-    std::unordered_map<M_TMSI, clientsData> visitorLocationRegister;
+    std::unordered_map<M_TMSI, ClientData> visitorLocationRegister;
     std::unique_ptr<HlrEirInterface> homeLocationAndEquipmentIdentityRegister;
     std::unique_ptr<SmsCenter> smsCenter;
     
@@ -48,17 +51,15 @@ public:
     BaseStation* getBaseStationByTmsi(M_TMSI m_tmsi);
     std::optional<BaseStationId> findBestBaseStation(const LocationPoint3D& clientLocation);
 
-    void cleanupExpiredMessages(const SerializerInterface& serializer);
+    void cleanupExpiredMessages();
 
     std::optional<M_TMSI> attachClient(const IMEI& imei, const IMSI& imsi,
                                        BaseStationId baseStationId, int clientFileDescriptor,
-                                       const SerializerInterface& serializer);
+                                       Protocol protocol);
     bool detachClient(M_TMSI m_tmsi);
     void startHandover(M_TMSI m_tmsi, BaseStationId newBaseStationId);
-    std::optional<std::vector<SmsId>> handleSmsRequest(const SmsSendRequest& request,
-                                                       const SerializerInterface& serializer);
-    void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages,
-                                      const SerializerInterface& serializer);
+    SmsResult handleSmsRequest(const SmsSendRequest& request);
+    void handleSmsDeliveryAcknowledge(const SmsDeliveryAcknowledge& messages);
 };
 
 #endif

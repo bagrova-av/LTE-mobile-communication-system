@@ -67,6 +67,12 @@ BytesBuffer JsonSerializer::serialize(const NetworkMessage& message) const
                     {
                         dataJSON["tempId"] = arg.tempId;
                         dataJSON["globalId"] = arg.globalId;
+                        dataJSON["totalParts"] = arg.totalParts;
+                    }
+                    else if constexpr (std::is_same_v<T, SmsSubmitReject>)
+                    {
+                        dataJSON["tempId"] = arg.tempId;
+                        dataJSON["reason"] = arg.reason;
                     }
                     else if constexpr (std::is_same_v<T, SmsIncomingMessage>)
                     {
@@ -160,7 +166,13 @@ std::optional<NetworkMessage> JsonSerializer::deserialize(PacketType packetType,
             }
             case PacketType::SMS_SUBMIT_ACCEPT :
             {
-                return SmsSubmitAccept{ dataJSON["tempId"], dataJSON["globalId"] };
+                return SmsSubmitAccept{ dataJSON["tempId"],
+                                        dataJSON["globalId"],
+                                        dataJSON["totalParts"] };
+            }
+            case PacketType::SMS_SUBMIT_REJECT :
+            {
+                return SmsSubmitReject{ dataJSON["tempId"], dataJSON["reason"] };
             }
             case PacketType::SMS_RECEIVE :
             {

@@ -32,6 +32,7 @@ set(CORE_SOURCE_LIST
     COMMON/networkUtils.cpp
     COMMON/parserUtils.cpp
     COMMON/validationUtils.cpp
+    COMMON/ConsoleProvider.cpp
     COMMON/logging/FileLogger.cpp
     COMMON/logging/Logger.cpp
     APP/app/AppParams.cpp

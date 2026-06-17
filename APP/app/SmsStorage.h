@@ -5,6 +5,7 @@
 #include <mutex>
 #include <optional>
 #include <algorithm>
+#include <set>
 
 #include "../../CORE/types.h"
 #include "../../CORE/network/NetworkMessages.h"
@@ -12,10 +13,13 @@
 struct SentSmsRecord
 {
     SmsId tempId;
-    std::optional<SmsId> globalId;
+    std::optional<std::vector<SmsId>> globalIds;
+    //std::optional<<SmsId> globalId;
     MSISDN receiverMsisdn;
     std::string text;
     SmsDeliveryStatus status;
+    std::set<SmsId> deliveredGlobalIds;
+    size_t totalPartsExpected = 0;
 };
 
 struct ReceivedSmsRecord
@@ -47,7 +51,7 @@ public:
     void addSentSms(const SentSmsRecord& smsRecord);
     bool updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus newStatus);
     bool updateSmsStatusByTempId(SmsId tempId, SmsDeliveryStatus newStatus);
-    bool linkSmsIds(SmsId tempId, SmsId globalId);
+    bool linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts);
 
     std::vector<ReceivedSmsRecord> getReceivedSmsCopy() const;
     std::vector<SentSmsRecord> getSentSmsCopy() const;

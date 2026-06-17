@@ -2,6 +2,7 @@
 #include "../../COMMON/logging/Logger.h"
 
 #include <algorithm>
+#include <format>
 
 bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus newStatus)
 {
@@ -9,7 +10,19 @@ bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus new
 
     SentSmsRecord* smsRecord = findSentSmsRecord([globalId](const auto& record)
                                                 {
-                                                    return record.globalId == globalId;
+                                                    if (!record.globalIds.has_value())
+                                                    {
+                                                        return false;
+                                                    }
+
+                                                    for (const auto& id : record.globalIds.value())
+                                                    {
+                                                        if (id == globalId)
+                                                        {
+                                                            return true;
+                                                        }
+                                                    }
+                                                    return false;
                                                 }
     );
 
@@ -17,8 +30,31 @@ bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus new
     {
         return false;
     }
-    smsRecord->status = newStatus;
-    Logger::debug("Updating status for SMS with global ID " + std::to_string(globalId));
+
+    if (newStatus == SmsDeliveryStatus::DELIVERED)
+    {
+        smsRecord->deliveredGlobalIds.insert(globalId);
+        if (smsRecord->deliveredGlobalIds.size() >= smsRecord->totalPartsExpected)
+        {
+            if (smsRecord->status < newStatus)
+            {
+                smsRecord->status = newStatus;
+            }
+        }
+    }
+    else
+    {
+        if (smsRecord->status < newStatus)
+        {
+            smsRecord->status = newStatus;
+        }
+    }
+
+    Logger::debug(std::format("Updating status for SMS with global ID = {} and temp ID = {}: "
+                              "{}/{} parts delivered. Current status: {}",
+                              globalId, smsRecord->tempId,
+                              smsRecord->deliveredGlobalIds.size(), smsRecord->totalPartsExpected,
+                              convertSmsDeliveryStatusToString(smsRecord->status)));
     return true;
 }
 
@@ -36,26 +72,45 @@ bool SmsStorage::updateSmsStatusByTempId(SmsId tempId, SmsDeliveryStatus newStat
     {
         return false;
     }
-    smsRecord->status = newStatus;
+
+    if (smsRecord->status < newStatus)
+    {
+        smsRecord->status = newStatus;
+    }
     return true;
 }
 
-bool SmsStorage::linkSmsIds(SmsId tempId, SmsId globalId)
+bool SmsStorage::linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts)
 {
     std::lock_guard<std::mutex> lock(smsMutex);
 
-    auto it = std::find_if(sentSmsRecords.begin(), sentSmsRecords.end(),
-                            [tempId](const SentSmsRecord& smsRecord)
-                            {
-                                return smsRecord.tempId == tempId;
-                            }
+    SentSmsRecord* smsRecord = findSentSmsRecord([tempId](const auto& record)
+                                                {
+                                                    return record.tempId == tempId;
+                                                }
     );
-
-    if (it == sentSmsRecords.end())
+    if (!smsRecord)
     {
         return false;
     }
-    it->globalId = globalId;
-    it->status = SmsDeliveryStatus::SENT_TO_SERVER;
+
+    if (smsRecord->totalPartsExpected == 0)
+    {
+        smsRecord->totalPartsExpected = totalParts;
+    }
+
+    if (!smsRecord->globalIds.has_value())
+    {
+        smsRecord->globalIds = std::vector<SmsId>{globalId};
+    }
+    else
+    {
+        smsRecord->globalIds.value().push_back(globalId);
+    }
+
+    if (smsRecord->status < SmsDeliveryStatus::IN_SMSC)
+    {
+        smsRecord->status = SmsDeliveryStatus::IN_SMSC;
+    }
     return true;
 }
