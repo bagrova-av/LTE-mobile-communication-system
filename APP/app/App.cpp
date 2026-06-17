@@ -341,7 +341,7 @@ void App::handleIncomingServerMessage(const NetworkDataPacket& dataPacket)
             if (message.has_value())
             {
                 const auto& submitAccept = std::get<SmsSubmitAccept>(message.value());
-                if (!linkSmsIds(submitAccept.tempId, submitAccept.globalId))
+                if (!linkSmsIds(submitAccept.tempId, submitAccept.globalId, submitAccept.totalParts))
                 {
                     Logger::error("Failed to associate the local ID for the message with its global value");
                 }

@@ -72,7 +72,7 @@ public:
     void addReceivedSmsRecord(const ReceivedSmsRecord& smsRecord);
     std::vector<ReceivedSmsRecord> getReceivedSmsHistory() const;
     std::vector<SentSmsRecord> getSentSmsHistory() const;
-    bool linkSmsIds(SmsId tempId, SmsId globalId);
+    bool linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts);
 
     void sendLocationToServerAsync(const LocationPoint3D& location);
     void sendAttachTaskToServerAsync();
@@ -183,9 +183,9 @@ inline std::vector<SentSmsRecord> App::getSentSmsHistory() const
     return smsStorage.getSentSmsCopy();
 }
 
-inline bool App::linkSmsIds(SmsId tempId, SmsId globalId)
+inline bool App::linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts)
 {
-    return smsStorage.linkSmsIds(tempId, globalId);
+    return smsStorage.linkSmsIds(tempId, globalId, totalParts);
 }
 
 #endif

@@ -81,7 +81,8 @@ bool CommandSms::execute(const std::vector<std::string>& args)
     SmsId tempId = app.generateNextLocalSmsId();
     app.addSentSmsRecord(SentSmsRecord{tempId, std::nullopt,
                                        receiverMsisdn, text,
-                                       SmsDeliveryStatus::SENDING});
+                                       SmsDeliveryStatus::SENDING,
+                                       0, 0});
     app.sendSmsTaskToServerAsync(SmsTaskData{receiverMsisdn, tempId, text});
 
     return true;

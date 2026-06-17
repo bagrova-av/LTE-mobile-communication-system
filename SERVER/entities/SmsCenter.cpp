@@ -22,7 +22,7 @@ std::optional<std::vector<SmsId>> SmsCenter::storeMessage(M_TMSI senderTmsi, con
     std::lock_guard<std::mutex> lock(smscMutex);
 
     size_t countParts = (fullText.length() + config.maxTextLength - 1) / config.maxTextLength;
-    if (smsStorage.size() + countParts >= config.maxBufferCount)
+    if (smsStorage.size() + countParts > config.maxBufferCount)
     {
         Logger::warning("SMS center: buffer full, cannot store message with " 
                         + std::to_string(countParts) + " parts");

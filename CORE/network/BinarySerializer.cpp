@@ -60,7 +60,7 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                     }
                     else if constexpr (std::is_same_v<T, SmsSubmitAccept>)
                     {
-                        totalSize = sizeof(SmsId) + sizeof(SmsId);
+                        totalSize = sizeof(SmsId) + sizeof(SmsId) + sizeof(uint8_t);
                     }
                     else if constexpr (std::is_same_v<T, SmsSubmitReject>)
                     {
@@ -149,6 +149,7 @@ BytesBuffer BinarySerializer::serialize(const NetworkMessage& message) const
                     {
                         writeValue(dataNetworkFormat, arg.tempId, offset);
                         writeValue(dataNetworkFormat, arg.globalId, offset);
+                        writeValue(dataNetworkFormat, arg.totalParts, offset);
                     }
                     else if constexpr (std::is_same_v<T, SmsSubmitReject>)
                     {
@@ -376,7 +377,13 @@ std::optional<NetworkMessage> BinarySerializer::deserialize(PacketType packetTyp
                 return std::nullopt;
             }
 
-            return SmsSubmitAccept{ tempId.value(), globalId.value() };
+            std::optional<uint8_t> totalParts = readValue<uint8_t>(dataNetworkFormat, offset);
+            if (!totalParts.has_value())
+            {
+                return std::nullopt;
+            }
+
+            return SmsSubmitAccept{ tempId.value(), globalId.value(), totalParts.value() };
         }
         case PacketType::SMS_SUBMIT_REJECT :
         {

@@ -77,6 +77,7 @@ struct SmsSubmitAccept
 {
     SmsId tempId;
     SmsId globalId;
+    uint8_t totalParts;
 };
 
 struct SmsSubmitReject

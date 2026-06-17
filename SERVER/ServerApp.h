@@ -38,7 +38,8 @@ private:
     bool sendDistanceResponse(int clientFileDescriptor, Protocol protocol, CoordinatesType distance);
     bool sendErrorResponse(int clientFileDescriptor, Protocol protocol, const std::string& message);
 
-    bool sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, SmsId globalSmsId);
+    bool sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol,
+                            SmsId tempSmsId, SmsId globalSmsId, uint8_t totalParts);
     bool sendSmsSubmitReject(int clientFileDescriptor, Protocol protocol, SmsId tempSmsId, const std::string& reason);
 
     void sendBufferedMessages(int clientFileDescriptor, const std::optional<M_TMSI>& currentTmsi);

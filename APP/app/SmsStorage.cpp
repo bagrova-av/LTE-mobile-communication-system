@@ -9,7 +9,15 @@ bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus new
 
     SentSmsRecord* smsRecord = findSentSmsRecord([globalId](const auto& record)
                                                 {
-                                                    return record.globalId == globalId;
+                                                    if (!record.globalIds.has_value())
+                                                    {
+                                                        return false;
+                                                    }
+
+                                                    for (const auto& id : record.globalIds.value())
+                                                    {
+                                                        return id == globalId;
+                                                    }
                                                 }
     );
 
@@ -17,8 +25,23 @@ bool SmsStorage::updateSmsStatusByGlobalId(SmsId globalId, SmsDeliveryStatus new
     {
         return false;
     }
-    smsRecord->status = newStatus;
-    Logger::debug("Updating status for SMS with global ID " + std::to_string(globalId));
+
+    if (newStatus == SmsDeliveryStatus::DELIVERED)
+    {
+        ++smsRecord->deliveredPartsCount;
+        if (smsRecord->deliveredPartsCount >= smsRecord->totalPartsExpected)
+        {
+            smsRecord->status = SmsDeliveryStatus::DELIVERED;
+        }
+    }
+    else
+    {
+        smsRecord->status = newStatus;
+    }
+
+    //smsRecord->status = newStatus;
+    Logger::debug("Updating status for SMS with global ID = " + std::to_string(globalId)
+                   + " to " + convertSmsDeliveryStatusToString(newStatus));
     return true;
 }
 
@@ -40,7 +63,7 @@ bool SmsStorage::updateSmsStatusByTempId(SmsId tempId, SmsDeliveryStatus newStat
     return true;
 }
 
-bool SmsStorage::linkSmsIds(SmsId tempId, SmsId globalId)
+bool SmsStorage::linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts)
 {
     std::lock_guard<std::mutex> lock(smsMutex);
 
@@ -49,12 +72,25 @@ bool SmsStorage::linkSmsIds(SmsId tempId, SmsId globalId)
                                                     return record.tempId == tempId;
                                                 }
     );
-
     if (!smsRecord)
     {
         return false;
     }
-    smsRecord->globalId = globalId;
+
+    if (smsRecord->totalPartsExpected == 0)
+    {
+        smsRecord->totalPartsExpected = totalParts;
+    }
+
+    if (smsRecord->globalIds.has_value())
+    {
+        smsRecord->globalIds.value().push_back(globalId);
+    }
+    else
+    {
+        smsRecord->globalIds = std::vector<SmsId>{globalId};
+    }
+    //smsRecord->globalId = globalId;
     smsRecord->status = SmsDeliveryStatus::IN_SMSC;
     return true;
 }

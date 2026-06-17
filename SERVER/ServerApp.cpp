@@ -466,10 +466,11 @@ bool ServerApp::handleSmsSendRequest(int clientFileDescriptor, Protocol protocol
         auto globalSmsIds = mme->handleSmsRequest(smsSendRequest);
         if (globalSmsIds.has_value())
         {
+            size_t totalParts = globalSmsIds.value().size();
             for (const auto& globalSmsId : globalSmsIds.value())
             {
                 if (!sendSmsSubmitAccept(clientFileDescriptor, protocol,
-                                        smsSendRequest.smsId, globalSmsId))
+                                        smsSendRequest.smsId, globalSmsId, totalParts))
                 {
                     closeClientConnection(clientFileDescriptor);
                     return false;
@@ -662,9 +663,9 @@ bool ServerApp::sendErrorResponse(int clientFileDescriptor, Protocol protocol, c
 }
 
 bool ServerApp::sendSmsSubmitAccept(int clientFileDescriptor, Protocol protocol,
-                                    SmsId tempSmsId, SmsId globalSmsId)
+                                    SmsId tempSmsId, SmsId globalSmsId, uint8_t totalParts)
 {
-    SmsSubmitAccept smsSubmitAccept{tempSmsId, globalSmsId};
+    SmsSubmitAccept smsSubmitAccept{tempSmsId, globalSmsId, totalParts};
     auto serializer = SerializerFactory::createSerializer(protocol);
     if (!serializer)
     {
