@@ -36,13 +36,13 @@ bool CommandMove::execute(const std::vector<std::string>& args)
     tempLocation.updateWithFlags(newLocation, flags);
     if (tempLocation == currentLocation)
     {
-        Logger::info("Location is already " + convertLocationToString(tempLocation) + ". No changes made.");
+        Logger::info("Location is already " + tempLocation.convertToString() + ". No changes made.");
     }
     else
     {
         app.setLocation(newLocation, flags);
-        Logger::info("Location updated from " + convertLocationToString(currentLocation)
-                    + " to " + convertLocationToString(app.getLocation()));
+        Logger::info("Location updated from " + currentLocation.convertToString()
+                    + " to " + app.getLocation().convertToString());
     }
 
     app.sendLocationToServerAsync(app.getLocation());

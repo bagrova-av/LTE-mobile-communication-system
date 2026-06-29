@@ -383,7 +383,7 @@ bool ServerApp::handleLocationRequest(int clientFileDescriptor, Protocol protoco
     if (message.has_value())
     {
         LocationPoint3D& targetLocation = std::get<LocationPoint3D>(message.value());
-        Logger::info("Get a target point: " + convertLocationToString(targetLocation));
+        Logger::info("Get a target point: " + targetLocation.convertToString());
 
         auto bestBaseStationId = mme->findBestBaseStation(targetLocation);
         if (currentTmsi.has_value())
@@ -417,7 +417,7 @@ bool ServerApp::handleLocationRequest(int clientFileDescriptor, Protocol protoco
         }
 
         CoordinatesType distance = location.distanceTo(targetLocation);
-        Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
+        Logger::info("A calculated distance to the point " + targetLocation.convertToString()
                     + " is " + std::to_string(distance));
 
         if (!sendDistanceResponse(clientFileDescriptor, protocol, distance))
@@ -722,9 +722,9 @@ void ServerApp::process()
 
         LocationPoint3D targetLocation = location;
         targetLocation.updateFromVector(numericComponents);
-        Logger::info("Get a target point: " + convertLocationToString(targetLocation));
+        Logger::info("Get a target point: " + targetLocation.convertToString());
         CoordinatesType distance = location.distanceTo(targetLocation);
-        Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
+        Logger::info("A calculated distance to the point " + targetLocation.convertToString()
                      + " is " + std::to_string(distance));
         ConsoleProvider::executeSafePrint([&]()
                                          {
