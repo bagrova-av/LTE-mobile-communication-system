@@ -3,6 +3,8 @@ project(TelecomApp)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(BUILD_TESTS "Build unit tests" OFF)
+
 include(FetchContent)
 FetchContent_Declare(
     json
@@ -11,12 +13,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git 
-    GIT_TAG v1.12.x
-)
-FetchContent_MakeAvailable(googletest)
+if (BUILD_TESTS)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.12.x
+    )
+    FetchContent_MakeAvailable(googletest)
+endif()
+
 
 set(CORE_SOURCE_LIST
     CORE/types.cpp
@@ -86,24 +91,27 @@ add_executable(${PROJECT_NAME}Server
 )
 target_link_libraries(${PROJECT_NAME}Server PRIVATE ${PROJECT_NAME}Core)
 
-enable_testing()
 
-add_executable(${PROJECT_NAME}Tests
-    tests/testMain.cpp
-    tests/testsHelper.cpp
-    tests/UtilsTests.cpp
-    tests/NetworkAddressTests.cpp
-    tests/ValidatorsTests.cpp
-    tests/ParserTests.cpp
-    tests/AppTests.cpp
-    tests/CommandsTests.cpp
-)
+if (BUILD_TESTS)
+    enable_testing()
 
-target_link_libraries(${PROJECT_NAME}Tests PRIVATE 
-    ${PROJECT_NAME}Core
-    ${PROJECT_NAME}ClientLib
-    GTest::gtest 
-)
+    add_executable(${PROJECT_NAME}Tests
+        tests/testMain.cpp
+        tests/testsHelper.cpp
+        tests/UtilsTests.cpp
+        tests/NetworkAddressTests.cpp
+        tests/ValidatorsTests.cpp
+        tests/ParserTests.cpp
+        tests/AppTests.cpp
+        tests/CommandsTests.cpp
+    )
 
-include(GoogleTest)
-gtest_discover_tests(${PROJECT_NAME}Tests)
+    target_link_libraries(${PROJECT_NAME}Tests PRIVATE
+        ${PROJECT_NAME}Core
+        ${PROJECT_NAME}ClientLib
+        GTest::gtest
+    )
+
+    include(GoogleTest)
+    gtest_discover_tests(${PROJECT_NAME}Tests)
+endif()
