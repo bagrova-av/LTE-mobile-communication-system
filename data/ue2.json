@@ -1,0 +1,9 @@
+{
+    "ip": "127.0.0.1",
+    "port": 7777,
+    "imei": "325314891006270",
+    "imsi": "12345603334455",
+    "msisdn": "89993334455",
+    "loc": [34.2, 0, 0],
+    "address_book_path" : "../data/addressBook.json"
+}

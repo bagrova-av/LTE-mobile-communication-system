@@ -1,0 +1,5 @@
+{
+    "max_text_length": 20,
+    "max_buffer_count": 160,
+    "sms_ttl_ms": 30000
+}
