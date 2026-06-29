@@ -16,15 +16,25 @@ ServerSocket::~ServerSocket()
     stopListening();
 }
 
-bool ServerSocket::setAcceptTimeout(double seconds)
+bool ServerSocket::setSocketTimeout(int fileDescriptor, std::chrono::microseconds microseconds)
 {
     struct timeval timeout;
-    timeout.tv_sec = static_cast<long>(seconds);
-    timeout.tv_usec = std::llround((seconds - timeout.tv_sec) * 1000000);
-    if (setsockopt(listenerSocketFileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(microseconds);
+    timeout.tv_sec = seconds.count();
+    timeout.tv_usec = (microseconds - seconds).count();
+    if (setsockopt(fileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
     {
         Logger::error("ServerSocket: failed when setting the timeout for input functions ("
                       + std::string(std::strerror(errno)) + ")");
+        return false;
+    }
+    return true;
+}
+
+bool ServerSocket::setAcceptTimeout(std::chrono::microseconds microseconds)
+{
+    if (!setSocketTimeout(listenerSocketFileDescriptor, microseconds))
+    {
         stopListening();
         return false;
     }
@@ -108,13 +118,9 @@ int ServerSocket::acceptClientConnection()
         return -1;
     }
 
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 100'000; // 100 milliseconds
-    if (setsockopt(clientFileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    if (!setSocketTimeout(clientFileDescriptor,
+                          std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(100))))
     {
-        Logger::error("ServerSocket: failed when setting the timeout for input functions"
-                      " (" + std::string(std::strerror(errno)) + ")");
         return -1;
     }
 

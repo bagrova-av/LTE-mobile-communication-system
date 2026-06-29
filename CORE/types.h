@@ -28,6 +28,7 @@ using MmeId = size_t;
 using SmsId = uint32_t;
 using Seconds = long long;
 using Milliseconds = long long;
+using Microseconds = long long;
 
 using BytesBuffer = std::vector<uint8_t>;
 

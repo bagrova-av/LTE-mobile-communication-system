@@ -91,7 +91,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
     }
     startPromise.set_value(true);
 
-    serverSocket.setAcceptTimeout(1.0); // 1 second
+    serverSocket.setAcceptTimeout(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds(1)));
 
     while(isRunning && isNetworkActive)
     {
