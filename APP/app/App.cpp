@@ -8,11 +8,11 @@
 
 #include <iostream>
 
-App::App(const AppConfig& appConfig, const AppState& initialState,
-        const std::map<size_t, AddressBookEntry>& addressBook) :
-    config(appConfig),
-    state(initialState),
-    addressBook(addressBook),
+App::App(AppConfig appConfig, AppState initialState,
+        std::map<size_t, AddressBookEntry> addressBook) :
+    config(std::move(appConfig)),
+    state(std::move(initialState)),
+    addressBook(std::move(addressBook)),
     nextLocalSmsId(1)
 {
     Logger::info("Application initialized successfully");

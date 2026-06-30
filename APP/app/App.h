@@ -44,8 +44,8 @@ private:
     void pushTaskToQueue(TaskType type, Protocol protocol, TaskData data);
 
 public:
-    App(const AppConfig& appConfig, const AppState& initialState,
-        const std::map<size_t, AddressBookEntry>& addressBook);
+    App(AppConfig appConfig, AppState initialState,
+        std::map<size_t, AddressBookEntry> addressBook);
     ~App();
 
     void setStatus(bool status);
