@@ -11,18 +11,18 @@ bool CommandReceivedSms::execute(const std::vector<std::string>& args)
         return false;
     }
 
-    std::vector<ReceivedSmsRecord> smsList = app.getReceivedSmsHistory();
-    if (smsList.empty())
+    std::cout << "\n----- RECEIVED MESSAGES -----" << '\n';
+    size_t totalReceivedSms = app.forEachReceivedSms(
+                                [this](const ReceivedSmsRecord& sms)
+                                {
+                                    std::cout << "From: " << sms.senderMsisdn
+                                            << " | Text: " << sms.text << '\n';
+                                }
+    );
+    if (totalReceivedSms == 0)
     {
         std::cout << "No received messages" << '\n';
-        return true;
     }
 
-    std::cout << "\n----- RECEIVED MESSAGES -----" << '\n';
-    for (const auto& sms : smsList)
-    {
-        std::cout << "From: " << sms.senderMsisdn
-                  << " | Text: " << sms.text << '\n';
-    }
     return true;
 }

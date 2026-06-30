@@ -14,7 +14,6 @@ struct SentSmsRecord
 {
     SmsId tempId;
     std::optional<std::vector<SmsId>> globalIds;
-    //std::optional<<SmsId> globalId;
     MSISDN receiverMsisdn;
     std::string text;
     SmsDeliveryStatus status;
@@ -53,8 +52,10 @@ public:
     bool updateSmsStatusByTempId(SmsId tempId, SmsDeliveryStatus newStatus);
     bool linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts);
 
-    std::vector<ReceivedSmsRecord> getReceivedSmsCopy() const;
-    std::vector<SentSmsRecord> getSentSmsCopy() const;
+    template<typename Func>
+    size_t forEachSentSms(Func callback) const;
+    template<typename Func>
+    size_t forEachReceivedSms(Func callback) const;
 };
 
 inline void SmsStorage::addReceivedSms(const ReceivedSmsRecord& smsRecord)
@@ -69,16 +70,26 @@ inline void SmsStorage::addSentSms(const SentSmsRecord& smsRecord)
     sentSmsRecords.push_back(smsRecord);
 }
 
-inline std::vector<ReceivedSmsRecord> SmsStorage::getReceivedSmsCopy() const
+template<typename Func>
+size_t SmsStorage::forEachSentSms(Func callback) const
 {
     std::lock_guard<std::mutex> lock(smsMutex);
-    return receivedSmsRecords;
+    for (const auto& sms : sentSmsRecords)
+    {
+        callback(sms);
+    }
+    return sentSmsRecords.size();
 }
 
-inline std::vector<SentSmsRecord> SmsStorage::getSentSmsCopy() const
+template<typename Func>
+size_t SmsStorage::forEachReceivedSms(Func callback) const
 {
     std::lock_guard<std::mutex> lock(smsMutex);
-    return sentSmsRecords;
+    for (const auto& sms : receivedSmsRecords)
+    {
+        callback(sms);
+    }
+    return receivedSmsRecords.size();
 }
 
 #endif
