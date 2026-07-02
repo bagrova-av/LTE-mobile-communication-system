@@ -13,8 +13,6 @@ class ServerSocket
 private:
     int listenerSocketFileDescriptor;
 
-    bool setSocketTimeout(int fileDescriptor, std::chrono::microseconds microseconds);
-
 public:
     ServerSocket();
     ~ServerSocket();

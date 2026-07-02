@@ -1,6 +1,7 @@
 #include "ClientSocket.h"
 #include "../COMMON/logging/Logger.h"
 #include "../COMMON/networkUtils.h"
+#include "SocketUtils.h"
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -55,14 +56,13 @@ bool ClientSocket::connectToServer(const IPv4& ip, Port port)
         return false;
     }
 
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 100'000; // 100 milliseconds
-    if (setsockopt(socketFileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    if (!setSocketTimeout(socketFileDescriptor,
+                          std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(100))))
     {
         Logger::error("ClientSocket: failed when setting the timeout for input functions"
                       " (" + std::string(std::strerror(errno)) + ")");
-        return -1;
+        disconnect();
+        return false;
     }
 
     Logger::info("ClientSocket: connected to the server successfully");

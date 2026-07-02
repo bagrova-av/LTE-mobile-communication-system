@@ -58,15 +58,13 @@ void CommandHandler::printMenuHeader() const
 void CommandHandler::printAddressBook() const
 {
     const std::map<size_t, AddressBookEntry>& addressBook = app.getAddressBook();
-    if (addressBook.empty())
+    if (!addressBook.empty())
     {
-        return;
-    }
-
-    std::cout << "\n===== Address Book (Speed Dial) =====" << '\n';
-    for (const auto& [id, entry] : addressBook)
-    {
-        std::cout << "[" << id << "] MSISDN: " << entry.msisdn << '\n';
+        std::cout << "\n===== Address Book (Speed Dial) =====" << '\n';
+        for (const auto& [id, entry] : addressBook)
+        {
+            std::cout << "[" << id << "] MSISDN: " << entry.msisdn << '\n';
+        }
     }
 }
 
@@ -84,8 +82,6 @@ void CommandHandler::process()
 
     while (true)
     {
-        //app.processResponses();
-
         ConsoleProvider::executeSafePrint([this]()
                                          {
                                             printAddressBook();
@@ -93,7 +89,6 @@ void CommandHandler::process()
                                          }
         );
 
-        //std::cout << "Please, enter the command: ";
         if (!std::getline(std::cin, commandStr))
         {
             std::cout << '\n';
@@ -127,13 +122,6 @@ void CommandHandler::process()
 
         std::this_thread::sleep_for(std::chrono::milliseconds(90));
     }
-
-    // std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    // std::cout << '\n' << "Processing remaining server responses...";
-    // if (!app.processResponses())
-    // {
-    //     std::cout << '\n' << "There are no new responses from the server" << '\n';
-    // }
 
     std::cout << "TelecomAppClient finished\n";
 }
