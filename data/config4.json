@@ -5,5 +5,5 @@
     "imsi": "502130123456789",
     "msisdn": "89997778899",
     "loc": [0, 0.6, -45.84],
-    "address_book_path" : "../data/addressBook.json"
+    "address_book_path" : "./data/addressBook.json"
 }

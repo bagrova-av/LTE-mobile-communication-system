@@ -93,6 +93,20 @@ add_executable(${PROJECT_NAME}Server
 target_link_libraries(${PROJECT_NAME}Server PRIVATE ${PROJECT_NAME}Core)
 
 
+add_custom_command(TARGET ${PROJECT_NAME}Server POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                            ${CMAKE_CURRENT_SOURCE_DIR}/data
+                            $<TARGET_FILE_DIR:${PROJECT_NAME}Server>/data
+                            COMMENT "Copying data folder to the server build directory"
+)
+add_custom_command(TARGET ${PROJECT_NAME}Client POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                            ${CMAKE_CURRENT_SOURCE_DIR}/data
+                            $<TARGET_FILE_DIR:${PROJECT_NAME}Client>/data
+                            COMMENT "Copying data folder to the client build directory"
+)
+
+
 if (BUILD_TESTS)
     enable_testing()
 

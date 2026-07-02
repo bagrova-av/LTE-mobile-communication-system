@@ -28,7 +28,7 @@ void Logger::log(LogLevel level, std::string_view message)
         ConsoleProvider::executeSafePrint([message]()
                                         {
                                             std::cerr << message << '\n';
-                                        }
+                                        }, false
         );
     }
 }
