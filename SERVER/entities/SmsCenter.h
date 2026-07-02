@@ -23,7 +23,6 @@ enum class SmsStatus
 struct SmsRecord
 {
     SmsId smsId;
-    M_TMSI senderTmsi;
     MSISDN senderMsisdn;
     MSISDN receiverMsisdn;
     std::string text;
@@ -40,7 +39,6 @@ struct PendingEvents
 struct AcknowledgeResult
 {
     bool isFound;
-    std::optional<M_TMSI> senderTmsi;
     bool senderOnline;
 };
 

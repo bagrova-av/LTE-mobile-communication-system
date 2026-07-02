@@ -111,6 +111,7 @@ int ServerSocket::acceptClientConnection()
     {
         Logger::error("ServerSocket: failed when setting the timeout for input functions ("
                       + std::string(std::strerror(errno)) + ")");
+        closeClientConnection(clientFileDescriptor);
         return -1;
     }
 

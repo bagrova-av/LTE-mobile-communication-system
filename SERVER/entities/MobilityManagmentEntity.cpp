@@ -104,13 +104,13 @@ void MobilityManagmentEntity::cleanupExpiredMessages()
             BaseStation* baseStation = getBaseStationByIdWithoutMutex(data.currentBaseSationId);
             if (baseStation)
             {
-                SmsStatusReport smsStatusReport{sms.senderTmsi, sms.smsId, status};
+                SmsStatusReport smsStatusReport{tmsi, sms.smsId, status};
                 NetworkDataPacket packetForBuffer{static_cast<uint8_t>(data.protocol),
                                                PacketType::SMS_STATUS,
                                               currentSerializer->serialize(smsStatusReport)};
-                baseStation->pushMessageToBuffer(sms.senderTmsi, packetForBuffer);
+                baseStation->pushMessageToBuffer(tmsi, packetForBuffer);
                 Logger::info(std::format("MME: Expired SMS with ID = {} report sent to sender with M_TMSI = {}",
-                                         sms.smsId, sms.senderTmsi));
+                                         sms.smsId, tmsi));
             }
         }
     }
@@ -377,7 +377,13 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
         return;
     }
 
-    auto itSender = visitorLocationRegister.find(smsRecord->senderTmsi);
+    auto itSenderTmsi = msisdnLookupTmsi.find(smsRecord.value().senderMsisdn);
+    if (itSenderTmsi == msisdnLookupTmsi.end())
+    {
+        return;
+    }
+
+    auto itSender = visitorLocationRegister.find(itSenderTmsi->second);
     bool isSenderOnline = false;
     if (itSender != visitorLocationRegister.end())
     {
@@ -392,20 +398,20 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
 
     Logger::debug("MME: SMS with ID = " + std::to_string(message.smsId)
                   + " marked as waiting delivery report in the SMS center");
-    BaseStation* baseStation = getBaseStationByTmsiWithoutMutex(smsRecord.value().senderTmsi);
+    BaseStation* baseStation = getBaseStationByTmsiWithoutMutex(itSender->first);
     if (baseStation)
     {
         Protocol senderProtocol = itSender->second.protocol;
         auto senderSerializer = SerializerFactory::createSerializer(senderProtocol);
 
-        SmsStatusReport smsStatusReport{smsRecord.value().senderTmsi, message.smsId, message.status};
+        SmsStatusReport smsStatusReport{itSender->first, message.smsId, message.status};
         NetworkDataPacket packetForBuffer{static_cast<uint8_t>(senderProtocol),
                                         PacketType::SMS_STATUS,
                                         senderSerializer->serialize(smsStatusReport)};
-        if (baseStation->pushMessageToBuffer(smsRecord.value().senderTmsi, packetForBuffer))
+        if (baseStation->pushMessageToBuffer(itSender->first, packetForBuffer))
         {
             Logger::info("MME: Status report for SMS with ID = " + std::to_string(message.smsId)
-            + " sent to the sender with M_TMSI = " + std::to_string(smsRecord->senderTmsi));
+            + " sent to the sender with M_TMSI = " + std::to_string(itSender->first));
         }
     }
 }
