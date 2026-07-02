@@ -1,7 +1,7 @@
 #include "ClientSocket.h"
 #include "../COMMON/logging/Logger.h"
 #include "../COMMON/networkUtils.h"
-#include "SocketUtils.h"
+#include "socketUtils.h"
 
 #include <sys/socket.h>
 #include <arpa/inet.h>

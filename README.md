@@ -225,6 +225,7 @@ graph TD
 │   │   ├── NetworkMessages.h | .cpp
 │   │   ├── SerializerFactory.h
 │   │   └── SerializerInterface.h
+│   ├── socketUtils.h | .cpp
 │   ├── NetworkAddress.h | .cpp
 │   ├── PacketTransporter.h | .cpp
 │   ├── ServerSocket.h | .cpp

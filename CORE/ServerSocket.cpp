@@ -1,6 +1,6 @@
 #include "ServerSocket.h"
 #include "../COMMON/logging/Logger.h"
-#include "SocketUtils.h"
+#include "socketUtils.h"
 
 #include <arpa/inet.h>
 #include <unistd.h>
