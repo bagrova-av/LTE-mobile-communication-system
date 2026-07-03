@@ -5,7 +5,8 @@
 #include <string>
 #include <optional>
 
-#include "types.h"
+#include "./types/IPv4.h"
+#include "./types/types.h"
 
 class NetworkAddress
 {

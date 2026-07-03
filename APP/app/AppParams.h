@@ -4,7 +4,8 @@
 
 #include <string>
 
-#include "../../CORE/types.h"
+#include "../../CORE/types/Protocol.h"
+#include "../../CORE/types/Point3D.h"
 #include "../../CORE/NetworkAddress.h"
 
 struct AppState

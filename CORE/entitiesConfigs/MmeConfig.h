@@ -2,7 +2,7 @@
 #ifndef MME_CONFIG_H
 #define MME_CONFIG_H
 
-#include "../types.h"
+#include "../types/types.h"
 
 struct MmeConfig
 {

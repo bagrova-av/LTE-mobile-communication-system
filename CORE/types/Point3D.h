@@ -1,13 +1,12 @@
 #pragma once
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef POINT_3D_H
+#define POINT_3D_H
 
 #include <ostream>
 #include <iomanip>
 #include <format>
 
 #include <cstdint>
-#include <array>
 #include <vector>
 #include <string>
 #include <utility>
@@ -15,39 +14,6 @@
 
 #include <concepts>
 #include <type_traits>
-
-using Octet = uint8_t;
-using IMSI = std::string;
-using M_TMSI = uint32_t;
-using IMEI = std::string;
-using MSISDN = std::string;
-using Nodes = std::string;
-using Port = uint16_t;
-using BaseStationId = uint32_t;
-using MmeId = size_t;
-using SmsId = uint32_t;
-using Seconds = long long;
-using Milliseconds = long long;
-using Microseconds = long long;
-
-using BytesBuffer = std::vector<uint8_t>;
-
-struct IPv4
-{
-    std::array<Octet, 4> octets;
-
-    std::string convertToString() const;
-
-    friend bool operator==(const IPv4& left, const IPv4& right)
-    {
-        return (left.octets[0] == right.octets[0]) && 
-               (left.octets[1] == right.octets[1]) &&
-               (left.octets[2] == right.octets[2]) &&
-               (left.octets[3] == right.octets[3]);
-    }
-};
-std::ostream& operator<<(std::ostream& out, const IPv4& ip);
-
 
 struct LocationFlags
 {
@@ -169,12 +135,4 @@ using CoordinatesType = float;
 using LocationPoint3D = Point3D<CoordinatesType>;
 std::ostream& operator<<(std::ostream& out, const LocationPoint3D& point);
 
-enum class Protocol : uint8_t
-{
-    JSON = 1,
-    BINARY = 2
-};
-std::ostream& operator<<(std::ostream& out, const Protocol& protocol);
-
 #endif
-

@@ -24,7 +24,9 @@ endif()
 
 
 set(CORE_SOURCE_LIST
-    CORE/types.cpp
+    CORE/types/IPv4.cpp
+    CORE/types/Point3D.cpp
+    CORE/types/Protocol.cpp
     CORE/NetworkAddress.cpp
     CORE/ClientSocket.cpp
     CORE/ServerSocket.cpp
@@ -49,7 +51,10 @@ add_library(${PROJECT_NAME}Core STATIC ${CORE_SOURCE_LIST})
 target_include_directories(${PROJECT_NAME}Core PUBLIC
     CORE/
     CORE/network
+    CORE/types
+    CORE/entitiesConfigs
     COMMON/
+    COMMON/logging
 )
 target_link_libraries(${PROJECT_NAME}Core PUBLIC 
     nlohmann_json::nlohmann_json

@@ -5,7 +5,7 @@
 #include <atomic>
 #include <future>
 
-#include "../CORE/types.h"
+#include "../CORE/types/Point3D.h"
 #include "../CORE/ServerSocket.h"
 #include "./entities/MobilityManagmentEntity.h"
 #include "SerializerInterface.h"

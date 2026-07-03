@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <set>
 
-#include "../../CORE/types.h"
+#include "../../CORE/types/types.h"
 #include "../../CORE/network/NetworkMessages.h"
 
 struct SentSmsRecord

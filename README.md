@@ -229,7 +229,11 @@ graph TD
 │   ├── NetworkAddress.h | .cpp
 │   ├── PacketTransporter.h | .cpp
 │   ├── ServerSocket.h | .cpp
-│   └── types.h | .cpp
+│   └── types
+│       ├── IPv4.h | .cpp
+│       ├── Point3D.h | .cpp
+│       ├── Protocol.h | .cpp
+│       └── types.h
 ├── data
 │   ├── config([1-9]|10).json    # config1.json,..., config10.json
 │   ├── config.json

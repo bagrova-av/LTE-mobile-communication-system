@@ -378,20 +378,20 @@ void MobilityManagmentEntity::handleSmsDeliveryAcknowledge(const SmsDeliveryAckn
     }
 
     auto itSenderTmsi = msisdnLookupTmsi.find(smsRecord.value().senderMsisdn);
-    if (itSenderTmsi == msisdnLookupTmsi.end())
-    {
-        return;
-    }
-
-    auto itSender = visitorLocationRegister.find(itSenderTmsi->second);
     bool isSenderOnline = false;
-    if (itSender != visitorLocationRegister.end())
+    if (itSenderTmsi != msisdnLookupTmsi.end())
     {
         isSenderOnline = true;
     }
 
     AcknowledgeResult result = smsCenter->processDeliveryAcknowledge(message.smsId, isSenderOnline);
     if (!result.isFound || !isSenderOnline)
+    {
+        return;
+    }
+
+    auto itSender = visitorLocationRegister.find(itSenderTmsi->second);
+    if (itSender == visitorLocationRegister.end())
     {
         return;
     }

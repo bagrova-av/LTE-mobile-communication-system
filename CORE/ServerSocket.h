@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <chrono>
 
-#include "types.h"
+#include "./types/types.h"
 
 class ServerSocket
 {

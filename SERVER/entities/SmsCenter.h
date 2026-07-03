@@ -8,7 +8,7 @@
 #include <atomic>
 #include <functional>
 
-#include "../../CORE/types.h"
+#include "../../CORE/types/types.h"
 #include "../../CORE/entitiesConfigs/SmsCenterConfig.h"
 
 enum class SmsStatus

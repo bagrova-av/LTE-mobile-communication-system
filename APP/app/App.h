@@ -7,7 +7,6 @@
 #include <thread>
 #include <map>
 
-#include "../../CORE/types.h"
 #include "AppParams.h"
 #include "../../COMMON/ThreadSafeQueue.h"
 #include "../../CORE/ClientSocket.h"
@@ -75,7 +74,6 @@ public:
     size_t forEachSentSms(Func callback) const;
     template<typename Func>
     size_t forEachReceivedSms(Func callback) const;
-
 
     void sendLocationToServerAsync(const LocationPoint3D& location);
     void sendAttachTaskToServerAsync();
