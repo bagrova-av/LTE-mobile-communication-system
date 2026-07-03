@@ -4,7 +4,8 @@
 
 #include <variant>
 
-#include "../types.h"
+#include "../types/types.h"
+#include "../types/Point3D.h"
 
 struct AttachRequest
 {

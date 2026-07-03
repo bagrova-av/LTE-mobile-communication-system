@@ -5,7 +5,7 @@
 #include <optional>
 #include <chrono>
 
-#include "../types.h"
+#include "../types/types.h"
 
 enum class SubscriberStatus
 {

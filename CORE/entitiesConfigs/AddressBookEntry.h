@@ -2,7 +2,7 @@
 #ifndef ADRESS_BOOK_ENTRY_H
 #define ADRESS_BOOK_ENTRY_H
 
-#include "../types.h"
+#include "../types/types.h"
 
 struct AddressBookEntry
 {

@@ -2,7 +2,8 @@
 #ifndef BASE_STATION_CONFIG_H
 #define BASE_STATION_CONFIG_H
 
-#include "../types.h"
+#include "../types/types.h"
+#include "../types/Point3D.h"
 
 struct BaseStationConfig
 {

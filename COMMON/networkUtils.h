@@ -6,8 +6,9 @@
 #include <bit>
 #include <optional>
 #include <cstring>
+#include <string>
 
-#include "../CORE/types.h"
+#include "../CORE/types/types.h"
 
 template<typename T>
 concept NetworkSerializable = std::same_as<T, uint8_t> ||

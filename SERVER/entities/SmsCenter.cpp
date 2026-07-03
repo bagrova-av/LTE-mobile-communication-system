@@ -49,7 +49,7 @@ SmsId SmsCenter::storeOneMessageWithoutMutex(M_TMSI senderTmsi, const MSISDN& se
                                             const MSISDN& receiverMsisdn, const std::string& text)
 {
     SmsId smsId = nextSmsId++;
-    smsStorage.emplace(smsId, SmsRecord{smsId, senderTmsi, senderMsisdn,
+    smsStorage.emplace(smsId, SmsRecord{smsId, senderMsisdn,
                                         receiverMsisdn, text,
                                         std::chrono::system_clock::now(),
                                         SmsStatus::PENDING});
@@ -105,10 +105,10 @@ AcknowledgeResult SmsCenter::processDeliveryAcknowledge(SmsId smsId, bool isSend
     auto it = smsStorage.find(smsId);
     if (it == smsStorage.end())
     {
-        return AcknowledgeResult{false, std::nullopt, isSenderOnline};
+        return AcknowledgeResult{false, isSenderOnline};
     }
 
-    AcknowledgeResult result{true, it->second.senderTmsi, isSenderOnline};
+    AcknowledgeResult result{true, isSenderOnline};
     if (isSenderOnline)
     {
         smsStorage.erase(it);

@@ -4,7 +4,7 @@
 
 #include <unordered_map>
 
-#include "../../CORE/types.h"
+#include "../../CORE/types/types.h"
 #include "../../COMMON/ThreadSafeQueue.h"
 #include "../../CORE/PacketTransporter.h"
 

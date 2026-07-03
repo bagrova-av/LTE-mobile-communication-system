@@ -55,4 +55,25 @@ bool parseSmsCenterJSON(const std::string& configPath, SmsCenterConfig& smsCente
 bool parseAddressBook(const std::string& configPath, const IMSI& myImsi,
                       std::map<size_t, AddressBookEntry>& addressBook);
 
+
+template<typename T, typename Validator>
+bool handleGenericArgument(int argc, char** argv, size_t& i,
+                          const std::string& flagName, T& targetField,
+                          const Validator& validate)
+{
+    if (i + 1 >= argc)
+    {
+        Logger::error("Error: Missing value for " + flagName);
+        return false;
+    }
+
+    if (!validate(argv[i+1]))
+    {
+        return false;
+    }
+    targetField = argv[i+1];
+    ++i;
+    return true;
+}
+
 #endif

@@ -15,4 +15,6 @@ inline constexpr float MINIMAL_SIGNAL_STRENGTH = 0.0f;
 
 inline constexpr size_t MAX_RECORDS_IN_ADDRESS_BOOK = 5;
 
+inline constexpr size_t MAX_ACTIVE_CLIENT_CONNECTIONS = 100;
+
 #endif

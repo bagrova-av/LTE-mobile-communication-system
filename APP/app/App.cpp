@@ -8,11 +8,11 @@
 
 #include <iostream>
 
-App::App(const AppConfig& appConfig, const AppState& initialState,
-        const std::map<size_t, AddressBookEntry>& addressBook) :
-    config(appConfig),
-    state(initialState),
-    addressBook(addressBook),
+App::App(AppConfig appConfig, AppState initialState,
+        std::map<size_t, AddressBookEntry> addressBook) :
+    config(std::move(appConfig)),
+    state(std::move(initialState)),
+    addressBook(std::move(addressBook)),
     nextLocalSmsId(1)
 {
     Logger::info("Application initialized successfully");
@@ -72,7 +72,7 @@ void App::handleAttachTask(uint8_t protocolHeader,
                            const SerializerInterface& serializer)
 {
     Logger::info("Connecting to server at " +
-                convertIPv4ToString(getIP()) + ":" + std::to_string(getPort()));
+                getIP().convertToString() + ":" + std::to_string(getPort()));
     if (!clientSocket.connectToServer(getIP(), getPort()))
     {
         std::lock_guard<std::mutex> lock(stateMutex);
@@ -250,7 +250,7 @@ void App::handleLocationTask(uint8_t protocolHeader,
         if (message.has_value())
         {
             CoordinatesType distance = std::get<DistanceResponse>(message.value()).distance;
-            std::string response = "Distance from " + convertLocationToString(location)
+            std::string response = "Distance from " + location.convertToString()
                                     + " to the server: " + std::to_string(distance);
             ConsoleProvider::printNotification(std::move(response), "[Server response] ");
             Logger::info("Received distance from the server. The distance from the client to the server is " +

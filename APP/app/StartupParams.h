@@ -4,7 +4,7 @@
 
 #include <optional>
 
-#include "../../CORE/types.h"
+#include "../../CORE/types/Point3D.h"
 
 struct StartupParams
 {
