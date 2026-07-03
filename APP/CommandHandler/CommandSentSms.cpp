@@ -36,7 +36,7 @@ bool CommandSentSms::execute(const std::vector<std::string>& args)
 
     std::cout << "\n----- SENT MESSAGES -----" << '\n';
     std::cout << std::left << std::setw(18) << "Global ID" << " | "
-              << std::setw(MAX_LENGTH_OF_IMSI_IMEI_MSISDN) << "To" << " | "
+              << std::setw(MAX_LENGTH_OF_MSISDN) << "To" << " | "
               << std::setw(15) << "Status" << " | "
               << "Text" << '\n';
 
@@ -55,7 +55,7 @@ bool CommandSentSms::execute(const std::vector<std::string>& args)
                                 }
 
                                 std::cout << std::left << std::setw(18) << idsString  << " | "
-                                        << std::setw(MAX_LENGTH_OF_IMSI_IMEI_MSISDN) << sms.receiverMsisdn << " | "
+                                        << std::setw(MAX_LENGTH_OF_MSISDN) << sms.receiverMsisdn << " | "
                                         << std::setw(15) << convertSmsDeliveryStatusToString(sms.status) << " | "
                                         << sms.text << '\n';
                             }
