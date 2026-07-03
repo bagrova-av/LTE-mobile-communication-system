@@ -39,11 +39,11 @@ bool validatePort(int32_t port)
 
 bool validateIMEI(const std::string& imei)
 {
-    if (imei.length() != MAX_LENGTH_OF_IMSI_IMEI_MSISDN)
+    if (imei.length() != MAX_LENGTH_OF_IMEI)
     {
         Logger::error(std::format("Validation error: the entered IMEI has a length of {}. "
                                     "It must contain exactly {} characters", 
-                                    imei.length(), MAX_LENGTH_OF_IMSI_IMEI_MSISDN));
+                                    imei.length(), MAX_LENGTH_OF_IMEI));
         return false;
     }
     
@@ -60,11 +60,11 @@ bool validateIMEI(const std::string& imei)
 
 bool validateIMSI(const std::string& imsi)
 {
-    if (imsi.length() > MAX_LENGTH_OF_IMSI_IMEI_MSISDN)
+    if (imsi.length() > MAX_LENGTH_OF_IMSI)
     {
         Logger::error(std::format("Validation error: the entered IMSI has a length of {}. "
                                     "It must contain no more than {} characters",
-                                    imsi.length(), MAX_LENGTH_OF_IMSI_IMEI_MSISDN));
+                                    imsi.length(), MAX_LENGTH_OF_IMSI));
         return false;
     }
     else if (imsi.length() < MIN_LENGTH_OF_IMSI)
@@ -87,11 +87,11 @@ bool validateIMSI(const std::string& imsi)
 
 bool validateMSISDN(const std::string& msisdn)
 {
-    if (msisdn.length() > MAX_LENGTH_OF_IMSI_IMEI_MSISDN)
+    if (msisdn.length() > MAX_LENGTH_OF_MSISDN)
     {
         Logger::error(std::format("Validation error: the entered MSISDN has a length of {}. "
                                     "It must contain no more than {} characters",
-                                    msisdn.length(), MAX_LENGTH_OF_IMSI_IMEI_MSISDN));
+                                    msisdn.length(), MAX_LENGTH_OF_MSISDN));
         return false;
     }
     else if (msisdn.length() < MIN_LENGTH_OF_MSISDN)
