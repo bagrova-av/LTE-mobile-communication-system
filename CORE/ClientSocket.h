@@ -4,7 +4,8 @@
 
 #include <optional>
 
-#include "types.h"
+#include "./types/IPv4.h"
+#include "./types/types.h"
 
 class ClientSocket
 {

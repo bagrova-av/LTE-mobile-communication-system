@@ -3,8 +3,7 @@
 #define EPC_CONFIG_H
 
 #include <chrono>
-
-#include "../types.h"
+#include <string>
 
 struct HlrEirConfig
 {

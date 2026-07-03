@@ -4,9 +4,9 @@
   {
     "format": "JSON",
     "provider": "file",
-    "path": "../data/hlrEir.json"
+    "path": "./data/hlrEir.json"
   },
-  "nodes_file": "../data/nodes.json",
-  "mme_config": "../data/mme.json",
-  "smsc_config": "../data/smsc.json"
+  "nodes_file": "./data/nodes.json",
+  "mme_config": "./data/mme.json",
+  "smsc_config": "./data/smsc.json"
 }

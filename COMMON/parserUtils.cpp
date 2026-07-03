@@ -17,83 +17,41 @@ std::optional<LocationPoint3D> parseLocation(const std::vector<CoordinatesType>&
 bool handleStringArgument(int argc, char** argv, size_t& i,
                           const std::string& flagName, std::optional<std::string>& targetField)
 {
-    if (i + 1 >= argc)
-    {
-        Logger::error("Error: Missing value for " + flagName);
-        return false;
-    }
-
-    targetField = argv[i+1];
-    ++i;
-    return true;
+    return handleGenericArgument(argc, argv, i, flagName, targetField,
+                                [](const std::string&)
+                                {
+                                    return true;
+                                }
+    );
 }
 
 bool handleStringArgument(int argc, char** argv, size_t& i,
                           const std::string& flagName, std::string& targetField)
 {
-    if (i + 1 >= argc)
-    {
-        Logger::error("Error: Missing value for " + flagName);
-        return false;
-    }
-
-    targetField = argv[i+1];
-    ++i;
-    return true;
+    return handleGenericArgument(argc, argv, i, flagName, targetField,
+                                [](const std::string&)
+                                {
+                                    return true;
+                                }
+    );
 }
 
 bool handleIMEIArgument(int argc, char** argv, size_t& i,
-                          const std::string& flagName, std::optional<std::string>& targetField)
+                        const std::string& flagName, std::optional<std::string>& targetField)
 {
-    if (i + 1 >= argc)
-    {
-        Logger::error("Error: Missing value for " + flagName);
-        return false;
-    }
-
-    targetField = argv[i+1];
-    if (!validateIMEI(targetField.value()))
-    {
-        return false;
-    }
-    ++i;
-    return true;
+    return handleGenericArgument(argc, argv, i, flagName, targetField, validateIMEI);
 }
 
 bool handleIMSIArgument(int argc, char** argv, size_t& i,
-                          const std::string& flagName, std::optional<std::string>& targetField)
+                        const std::string& flagName, std::optional<std::string>& targetField)
 {
-    if (i + 1 >= argc)
-    {
-        Logger::error("Error: Missing value for " + flagName);
-        return false;
-    }
-
-    targetField = argv[i+1];
-    if (!validateIMSI(targetField.value()))
-    {
-        return false;
-    }
-    ++i;
-    return true;
+    return handleGenericArgument(argc, argv, i, flagName, targetField, validateIMSI);
 }
 
 bool handleMSISDNArgument(int argc, char** argv, size_t& i,
-                          const std::string& flagName, std::optional<std::string>& targetField)
+                        const std::string& flagName, std::optional<std::string>& targetField)
 {
-    if (i + 1 >= argc)
-    {
-        Logger::error("Error: Missing value for " + flagName);
-        return false;
-    }
-
-    targetField = argv[i+1];
-    if (!validateMSISDN(targetField.value()))
-    {
-        return false;
-    }
-    ++i;
-    return true;
+    return handleGenericArgument(argc, argv, i, flagName, targetField, validateMSISDN);
 }
 
 bool handleLocationArgument(int argc, char** argv, size_t& i,
@@ -132,19 +90,12 @@ bool handleLocationArgument(int argc, char** argv, size_t& i,
 bool handleConfigPathArgument(int argc, char** argv, size_t& i, 
                           const std::string& flagName, std::string& targetField)
 {
-    if (i + 1 >= argc)
-    {
-        Logger::error("Error: Missing value for " + flagName);
-        return false;
-    }
-
-    targetField = argv[i+1];
-    if (!checkCorrectNameFile(targetField, ".json"))
-    {
-        return false;
-    }
-    ++i;
-    return true;
+    return handleGenericArgument(argc, argv, i, flagName, targetField,
+                                [](const std::string& path)
+                                {
+                                    return checkCorrectNameFile(path, ".json");
+                                }
+    );
 }
 
 std::optional<StartupParams> parseCLI(int argc, char** argv, std::string& configPath)

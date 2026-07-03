@@ -3,6 +3,7 @@
 #include "../COMMON/parserUtils.h"
 #include "../CORE/PacketTransporter.h"
 #include "../COMMON/ConsoleProvider.h"
+#include "../COMMON/constants.h"
 
 #include <algorithm>
 #include <iostream>
@@ -15,6 +16,7 @@ ServerApp::ServerApp(uint16_t port, const LocationPoint3D& location, const EpcCo
     epcConfig(epcConfig),
     isRunning(true),
     activeClientsCount(0),
+    maxActiveClientConnnections(MAX_ACTIVE_CLIENT_CONNECTIONS),
     lastClientDisconnectedTime(std::chrono::system_clock::now()),
     serverSocket()
 {
@@ -89,7 +91,7 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
     }
     startPromise.set_value(true);
 
-    serverSocket.setAcceptTimeout(1.0); // 1 second
+    serverSocket.setAcceptTimeout(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds(1)));
 
     while(isRunning && isNetworkActive)
     {
@@ -125,10 +127,10 @@ void ServerApp::networkThreadWorker(std::promise<bool> startPromise)
                      + ") connected");
         ++activeClientsCount;
 
-        if (activeClientsFutures.size() > MAX_ACTIVE_CLIENT_CONNECTIONS)
+        if (activeClientsFutures.size() > maxActiveClientConnnections)
         {
             Logger::warning("Server overloaded: maximum number of active client connections ( "
-                + std::to_string(MAX_ACTIVE_CLIENT_CONNECTIONS) + " ) has been reached. "
+                + std::to_string(maxActiveClientConnnections) + " ) has been reached. "
                 + "Closing new connection");
             ServerSocket::closeClientConnection(clientFileDescriptor);
             --activeClientsCount;
@@ -381,7 +383,7 @@ bool ServerApp::handleLocationRequest(int clientFileDescriptor, Protocol protoco
     if (message.has_value())
     {
         LocationPoint3D& targetLocation = std::get<LocationPoint3D>(message.value());
-        Logger::info("Get a target point: " + convertLocationToString(targetLocation));
+        Logger::info("Get a target point: " + targetLocation.convertToString());
 
         auto bestBaseStationId = mme->findBestBaseStation(targetLocation);
         if (currentTmsi.has_value())
@@ -415,7 +417,7 @@ bool ServerApp::handleLocationRequest(int clientFileDescriptor, Protocol protoco
         }
 
         CoordinatesType distance = location.distanceTo(targetLocation);
-        Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
+        Logger::info("A calculated distance to the point " + targetLocation.convertToString()
                     + " is " + std::to_string(distance));
 
         if (!sendDistanceResponse(clientFileDescriptor, protocol, distance))
@@ -720,9 +722,9 @@ void ServerApp::process()
 
         LocationPoint3D targetLocation = location;
         targetLocation.updateFromVector(numericComponents);
-        Logger::info("Get a target point: " + convertLocationToString(targetLocation));
+        Logger::info("Get a target point: " + targetLocation.convertToString());
         CoordinatesType distance = location.distanceTo(targetLocation);
-        Logger::info("A calculated distance to the point " + convertLocationToString(targetLocation)
+        Logger::info("A calculated distance to the point " + targetLocation.convertToString()
                      + " is " + std::to_string(distance));
         ConsoleProvider::executeSafePrint([&]()
                                          {

@@ -225,10 +225,15 @@ graph TD
 │   │   ├── NetworkMessages.h | .cpp
 │   │   ├── SerializerFactory.h
 │   │   └── SerializerInterface.h
+│   ├── socketUtils.h | .cpp
 │   ├── NetworkAddress.h | .cpp
 │   ├── PacketTransporter.h | .cpp
 │   ├── ServerSocket.h | .cpp
-│   └── types.h | .cpp
+│   └── types
+│       ├── IPv4.h | .cpp
+│       ├── Point3D.h | .cpp
+│       ├── Protocol.h | .cpp
+│       └── types.h
 ├── data
 │   ├── config([1-9]|10).json    # config1.json,..., config10.json
 │   ├── config.json
@@ -322,7 +327,12 @@ graph TD
 ```bash
 mkdir build
 cd build
+
+# Сгенерировать файлы сборки без тестов
 cmake ..
+# Сгенерировать файлы сборки с тестами
+cmake -DBUILD_TESTS=ON ..
+
 # Для сборки в однопоточном режиме:
 cmake --build .
 # Для сборки в многопоточном режиме:
@@ -339,7 +349,7 @@ cmake --build . -jN
     "imsi": "12345601112233",
     "msisdn": "89991112233",
     "loc": [-34.2, 0, 0],
-    "address_book_path" : "../data/addressBook.json"
+    "address_book_path" : "./data/addressBook.json"
 }
 ```
 
@@ -351,11 +361,11 @@ cmake --build . -jN
   {
     "format": "JSON",
     "provider": "file",
-    "path": "../data/hlrEir.json"
+    "path": "./data/hlrEir.json"
   },
-  "nodes_file": "../data/nodes.json",
-  "mme_config": "../data/mme.json",
-  "smsc_config": "../data/smsc.json"
+  "nodes_file": "./data/nodes.json",
+  "mme_config": "./data/mme.json",
+  "smsc_config": "./data/smsc.json"
 }
 ```
 
@@ -473,17 +483,17 @@ cmake --build . -jN
 #### Запуск клиента
 Чтение параметров только из CLI:
 ```bash
-./TelecomAppClient --ip 127.0.0.1 --port 7777 --imei 490154203237518 --imsi 404685505601234 --msisdn 88120001122 --loc 1.6 -20.3 0 --nodes nodeA,nodeB --book ../data/addressBook.json
+./TelecomAppClient --ip 127.0.0.1 --port 7777 --imei 490154203237518 --imsi 404685505601234 --msisdn 88120001122 --loc 1.6 -20.3 0 --nodes nodeA,nodeB --book ./data/addressBook.json
 ```
 
 Чтение параметров только из JSON файла:
 ```bash
-./TelecomAppClient --config ../data/config.json --nodes nodeA,nodeB
+./TelecomAppClient --config ./data/config.json --nodes nodeA,nodeB
 ```
 
 С переопределением некоторых параметров из JSON файла через флаги в CLI:
 ```bash
-./TelecomAppClient --config ../data/config.json --port 7777 --imei 490154203237518 --imsi 404685505601234 --nodes nodeA,nodeB --loc 1.6 -20.3 0
+./TelecomAppClient --config ./data/config.json --port 7777 --imei 490154203237518 --imsi 404685505601234 --nodes nodeA,nodeB --loc 1.6 -20.3 0
 ```
 
 #### Автоматический запуск нескольких приложений-клиентов (через bash-скрипт)
@@ -505,17 +515,17 @@ chmod +x runClients.sh
 
 Если вдруг скрипт выведет ошибку `Error: no supported terminal emulator found (tried gnome-terminal, konsole, xfce4-terminal, etc.)`, то выполнить запуск клиентов руками с помощью команд ниже (каждую команду нужно вводить в новом терминале, находясь в папке `./build`):
 ```sh
-./TelecomAppClient --config ../data/ue1.json --nodes node1
-./TelecomAppClient --config ../data/ue2.json --nodes node2
-./TelecomAppClient --config ../data/ue3.json --nodes node3
-./TelecomAppClient --config ../data/ue4.json --nodes node4
+./TelecomAppClient --config ./data/ue1.json --nodes node1
+./TelecomAppClient --config ./data/ue2.json --nodes node2
+./TelecomAppClient --config ./data/ue3.json --nodes node3
+./TelecomAppClient --config ./data/ue4.json --nodes node4
 ```
 
 #### Запуск сервера
 ```bash
 cd build # нужно выполнять, только если Вы в корневой директории
 
-./TelecomAppServer --port 7777 --loc -3.14 5.45 13.335 --config ../data/epc.json
+./TelecomAppServer --port 7777 --loc -3.14 5.45 13.335 --config ./data/epc.json
 ```
 
 #### Запуск тестов

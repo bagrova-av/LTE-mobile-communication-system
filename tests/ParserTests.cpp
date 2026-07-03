@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "../COMMON/parserUtils.h"
-#include "../CORE/types.h"
+#include "../CORE/types/Point3D.h"
 #include "testsHelper.h"
 
 TEST(ParserTest, ParseLocation_ValidComponents)

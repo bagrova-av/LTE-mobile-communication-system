@@ -2,7 +2,7 @@
 #ifndef SMS_CENTER_CONFIG_H
 #define SMS_CENTER_CONFIG_H
 
-#include "../types.h"
+#include <chrono>
 
 struct SmsCenterConfig
 {

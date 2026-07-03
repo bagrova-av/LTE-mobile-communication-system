@@ -1,5 +1,6 @@
 #include "ServerSocket.h"
 #include "../COMMON/logging/Logger.h"
+#include "socketUtils.h"
 
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -16,12 +17,9 @@ ServerSocket::~ServerSocket()
     stopListening();
 }
 
-bool ServerSocket::setAcceptTimeout(double seconds)
+bool ServerSocket::setAcceptTimeout(std::chrono::microseconds microseconds)
 {
-    struct timeval timeout;
-    timeout.tv_sec = static_cast<long>(seconds);
-    timeout.tv_usec = std::llround((seconds - timeout.tv_sec) * 1000000);
-    if (setsockopt(listenerSocketFileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    if (!setSocketTimeout(listenerSocketFileDescriptor, microseconds))
     {
         Logger::error("ServerSocket: failed when setting the timeout for input functions ("
                       + std::string(std::strerror(errno)) + ")");
@@ -108,13 +106,12 @@ int ServerSocket::acceptClientConnection()
         return -1;
     }
 
-    struct timeval timeout;
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 100'000; // 100 milliseconds
-    if (setsockopt(clientFileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    if (!setSocketTimeout(clientFileDescriptor,
+                          std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(100))))
     {
-        Logger::error("ServerSocket: failed when setting the timeout for input functions"
-                      " (" + std::string(std::strerror(errno)) + ")");
+        Logger::error("ServerSocket: failed when setting the timeout for input functions ("
+                      + std::string(std::strerror(errno)) + ")");
+        closeClientConnection(clientFileDescriptor);
         return -1;
     }
 

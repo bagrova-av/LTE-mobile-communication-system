@@ -10,8 +10,14 @@
 #include "../COMMON/parserUtils.h"
 #include "../COMMON/ConsoleProvider.h"
 
-std::optional<std::tuple<AppConfig, LocationPoint3D, std::map<size_t, AddressBookEntry>>>
-                                                    loadConfiguration(int argc, char** argv)
+struct AppLoadedConfig
+{
+    AppConfig appConfig;
+    LocationPoint3D initialLocation;
+    std::map<size_t, AddressBookEntry> addressBook;
+};
+
+std::optional<AppLoadedConfig> loadConfiguration(int argc, char** argv)
 {
     Logger::info("Loading parameters from CLI");
     std::string configPath = "";
@@ -41,7 +47,7 @@ std::optional<std::tuple<AppConfig, LocationPoint3D, std::map<size_t, AddressBoo
     }
 
     std::map<size_t, AddressBookEntry> addressBook;
-    if (params.value().addressBookPath.length())
+    if (!params.value().addressBookPath.empty())
     {
         if (!parseAddressBook(params.value().addressBookPath, appConfig.value().imsi, addressBook))
         {
@@ -49,7 +55,9 @@ std::optional<std::tuple<AppConfig, LocationPoint3D, std::map<size_t, AddressBoo
         }
     }
 
-    return std::make_tuple(appConfig.value(), params.value().initialLocation.value(), addressBook);
+    return AppLoadedConfig{ std::move(appConfig.value()),
+                            std::move(params.value().initialLocation.value()),
+                            std::move(addressBook) };
 }
 
 int main(int argc, char** argv)
@@ -64,11 +72,15 @@ int main(int argc, char** argv)
     {
         return 1;
     }
-    const auto& [appConfig, initialLocation, addressBook] = resultConfiguration.value();
 
-    AppState initialState{ initialLocation, false, Protocol::JSON, std::nullopt };
+    AppState initialState{ resultConfiguration.value().initialLocation,
+                           false,
+                           Protocol::JSON,
+                           std::nullopt };
 
-    App app(appConfig, initialState, addressBook);
+    App app( std::move(resultConfiguration.value().appConfig),
+             std::move(initialState),
+             std::move(resultConfiguration.value().addressBook) );
     CommandHandler menu(app);
     menu.process();
 

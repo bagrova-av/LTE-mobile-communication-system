@@ -7,7 +7,6 @@
 #include <thread>
 #include <map>
 
-#include "../../CORE/types.h"
 #include "AppParams.h"
 #include "../../COMMON/ThreadSafeQueue.h"
 #include "../../CORE/ClientSocket.h"
@@ -44,8 +43,8 @@ private:
     void pushTaskToQueue(TaskType type, Protocol protocol, TaskData data);
 
 public:
-    App(const AppConfig& appConfig, const AppState& initialState,
-        const std::map<size_t, AddressBookEntry>& addressBook);
+    App(AppConfig appConfig, AppState initialState,
+        std::map<size_t, AddressBookEntry> addressBook);
     ~App();
 
     void setStatus(bool status);
@@ -69,9 +68,12 @@ public:
 
     void addSentSmsRecord(const SentSmsRecord& smsRecord);
     void addReceivedSmsRecord(const ReceivedSmsRecord& smsRecord);
-    std::vector<ReceivedSmsRecord> getReceivedSmsHistory() const;
-    std::vector<SentSmsRecord> getSentSmsHistory() const;
     bool linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts);
+
+    template<typename Func>
+    size_t forEachSentSms(Func callback) const;
+    template<typename Func>
+    size_t forEachReceivedSms(Func callback) const;
 
     void sendLocationToServerAsync(const LocationPoint3D& location);
     void sendAttachTaskToServerAsync();
@@ -172,19 +174,21 @@ inline void App::addReceivedSmsRecord(const ReceivedSmsRecord& smsRecord)
     smsStorage.addReceivedSms(smsRecord);
 }
 
-inline std::vector<ReceivedSmsRecord> App::getReceivedSmsHistory() const
-{
-    return smsStorage.getReceivedSmsCopy();
-}
-
-inline std::vector<SentSmsRecord> App::getSentSmsHistory() const
-{
-    return smsStorage.getSentSmsCopy();
-}
-
 inline bool App::linkSmsIds(SmsId tempId, SmsId globalId, uint8_t totalParts)
 {
     return smsStorage.linkSmsIds(tempId, globalId, totalParts);
+}
+
+template<typename Func>
+size_t App::forEachSentSms(Func callback) const
+{
+    return smsStorage.forEachSentSms(std::move(callback));
+}
+
+template<typename Func>
+size_t App::forEachReceivedSms(Func callback) const
+{
+    return smsStorage.forEachReceivedSms(std::move(callback));
 }
 
 #endif

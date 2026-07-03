@@ -4,7 +4,8 @@
 
 #include <variant>
 
-#include "../../CORE/types.h"
+#include "../../CORE/types/types.h"
+#include "../../CORE/types/Point3D.h"
 
 enum class TaskType
 {

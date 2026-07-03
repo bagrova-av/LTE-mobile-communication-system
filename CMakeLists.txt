@@ -3,6 +3,8 @@ project(TelecomApp)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(BUILD_TESTS "Build unit tests" OFF)
+
 include(FetchContent)
 FetchContent_Declare(
     json
@@ -11,18 +13,24 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git 
-    GIT_TAG v1.12.x
-)
-FetchContent_MakeAvailable(googletest)
+if (BUILD_TESTS)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.12.x
+    )
+    FetchContent_MakeAvailable(googletest)
+endif()
+
 
 set(CORE_SOURCE_LIST
-    CORE/types.cpp
+    CORE/types/IPv4.cpp
+    CORE/types/Point3D.cpp
+    CORE/types/Protocol.cpp
     CORE/NetworkAddress.cpp
     CORE/ClientSocket.cpp
     CORE/ServerSocket.cpp
+    CORE/socketUtils.cpp
     CORE/PacketTransporter.cpp
     CORE/network/BinarySerializer.cpp
     CORE/network/JsonSerializer.cpp
@@ -43,7 +51,10 @@ add_library(${PROJECT_NAME}Core STATIC ${CORE_SOURCE_LIST})
 target_include_directories(${PROJECT_NAME}Core PUBLIC
     CORE/
     CORE/network
+    CORE/types
+    CORE/entitiesConfigs
     COMMON/
+    COMMON/logging
 )
 target_link_libraries(${PROJECT_NAME}Core PUBLIC 
     nlohmann_json::nlohmann_json
@@ -86,24 +97,41 @@ add_executable(${PROJECT_NAME}Server
 )
 target_link_libraries(${PROJECT_NAME}Server PRIVATE ${PROJECT_NAME}Core)
 
-enable_testing()
 
-add_executable(${PROJECT_NAME}Tests
-    tests/testMain.cpp
-    tests/testsHelper.cpp
-    tests/UtilsTests.cpp
-    tests/NetworkAddressTests.cpp
-    tests/ValidatorsTests.cpp
-    tests/ParserTests.cpp
-    tests/AppTests.cpp
-    tests/CommandsTests.cpp
+add_custom_command(TARGET ${PROJECT_NAME}Server POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                            ${CMAKE_CURRENT_SOURCE_DIR}/data
+                            $<TARGET_FILE_DIR:${PROJECT_NAME}Server>/data
+                            COMMENT "Copying data folder to the server build directory"
+)
+add_custom_command(TARGET ${PROJECT_NAME}Client POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                            ${CMAKE_CURRENT_SOURCE_DIR}/data
+                            $<TARGET_FILE_DIR:${PROJECT_NAME}Client>/data
+                            COMMENT "Copying data folder to the client build directory"
 )
 
-target_link_libraries(${PROJECT_NAME}Tests PRIVATE 
-    ${PROJECT_NAME}Core
-    ${PROJECT_NAME}ClientLib
-    GTest::gtest 
-)
 
-include(GoogleTest)
-gtest_discover_tests(${PROJECT_NAME}Tests)
+if (BUILD_TESTS)
+    enable_testing()
+
+    add_executable(${PROJECT_NAME}Tests
+        tests/testMain.cpp
+        tests/testsHelper.cpp
+        tests/UtilsTests.cpp
+        tests/NetworkAddressTests.cpp
+        tests/ValidatorsTests.cpp
+        tests/ParserTests.cpp
+        tests/AppTests.cpp
+        tests/CommandsTests.cpp
+    )
+
+    target_link_libraries(${PROJECT_NAME}Tests PRIVATE
+        ${PROJECT_NAME}Core
+        ${PROJECT_NAME}ClientLib
+        GTest::gtest
+    )
+
+    include(GoogleTest)
+    gtest_discover_tests(${PROJECT_NAME}Tests)
+endif()

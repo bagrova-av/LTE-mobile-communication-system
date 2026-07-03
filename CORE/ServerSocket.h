@@ -4,8 +4,9 @@
 
 #include <optional>
 #include <sys/socket.h>
+#include <chrono>
 
-#include "types.h"
+#include "./types/types.h"
 
 class ServerSocket
 {
@@ -19,7 +20,7 @@ public:
     ServerSocket(const ServerSocket& other) = delete;
     ServerSocket& operator=(const ServerSocket& other) = delete;
 
-    bool setAcceptTimeout(double seconds);
+    bool setAcceptTimeout(std::chrono::microseconds microseconds);
 
     bool startListening(Port port, int backlog = SOMAXCONN);
     void stopListening();

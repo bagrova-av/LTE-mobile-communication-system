@@ -2,7 +2,8 @@
 #ifndef MOBILITY_MANAGMENT_ENTITY_H
 #define MOBILITY_MANAGMENT_ENTITY_H
 
-#include "../../CORE/types.h"
+#include "../../CORE/types/types.h"
+#include "../../CORE/types/Protocol.h"
 #include "BaseStation.h"
 #include "./hlrAndEir/JsonHlrEir.h"
 #include "../../CORE/entitiesConfigs/MmeConfig.h"
